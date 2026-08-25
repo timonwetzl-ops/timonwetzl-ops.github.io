@@ -8,52 +8,90 @@
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#1b1023;
-    --bg-card:#26152f;
-    --bg-card-2:#2f1a3a;
-    --pink:#ff3d68;
-    --yellow:#ffd23f;
-    --mint:#4ecdc4;
-    --cream:#f5efe6;
-    --cream-dim:#c9bfd6;
+    --bg:#1b1023; --bg-card:#26152f; --bg-card-2:#2f1a3a;
+    --pink:#ff3d68; --yellow:#ffd23f; --mint:#4ecdc4;
+    --cream:#f5efe6; --cream-dim:#c9bfd6;
   }
   *{box-sizing:border-box;}
   body{margin:0;background:var(--bg);color:var(--cream);font-family:'Work Sans',sans-serif;line-height:1.5;}
   h1,h2,h3{font-family:'Baloo 2',sans-serif;margin:0;}
-  .stripe{
-    height:10px;
-    background:repeating-linear-gradient(135deg,var(--pink) 0 14px,var(--yellow) 14px 28px);
-  }
-  nav{display:flex;justify-content:space-between;align-items:center;padding:22px 6vw;}
-  nav .logo{font-family:'Baloo 2';font-weight:800;font-size:1.4rem;color:var(--cream);}
+  a{color:inherit;}
+  .stripe{height:10px;background:repeating-linear-gradient(135deg,var(--pink) 0 14px,var(--yellow) 14px 28px);}
+  nav{display:flex;justify-content:space-between;align-items:center;padding:22px 6vw;flex-wrap:wrap;gap:12px;}
+  nav .logo{font-family:'Baloo 2';font-weight:800;font-size:1.4rem;}
   nav .logo span{color:var(--pink);}
-  nav a{color:var(--cream-dim);text-decoration:none;margin-left:26px;font-weight:500;font-size:.95rem;}
-  nav a:hover{color:var(--yellow);}
-  header.hero{padding:8vh 6vw 10vh;text-align:center;position:relative;}
+  nav .links a{color:var(--cream-dim);text-decoration:none;margin-left:26px;font-weight:500;font-size:.95rem;cursor:pointer;}
+  nav .links a:hover{color:var(--yellow);}
+  header.hero{padding:8vh 6vw 10vh;text-align:center;}
   header.hero h1{font-size:clamp(2.4rem,6vw,4.2rem);font-weight:800;letter-spacing:-1px;}
   header.hero h1 em{font-style:normal;color:var(--pink);}
-  header.hero p{max-width:560px;margin:22px auto 0;color:var(--cream-dim);font-size:1.15rem;}
-  .btn{display:inline-block;margin-top:34px;padding:16px 34px;border-radius:100px;background:var(--pink);color:#1b1023;font-weight:700;text-decoration:none;font-size:1.05rem;transition:transform .15s ease;}
+  header.hero p{max-width:580px;margin:22px auto 0;color:var(--cream-dim);font-size:1.1rem;}
+  .btn{display:inline-block;margin-top:34px;padding:16px 34px;border-radius:100px;background:var(--pink);color:#1b1023;font-weight:700;text-decoration:none;font-size:1.05rem;border:none;cursor:pointer;transition:transform .15s ease;}
   .btn:hover{transform:translateY(-2px);}
   .btn.outline{background:transparent;border:2px solid var(--mint);color:var(--mint);margin-left:14px;}
   section{padding:8vh 6vw;}
   .eyebrow{color:var(--mint);font-weight:600;letter-spacing:2px;text-transform:uppercase;font-size:.8rem;}
   section h2{font-size:clamp(1.8rem,4vw,2.6rem);margin-top:10px;margin-bottom:34px;}
+
   .gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;}
   .gallery img{width:100%;height:220px;object-fit:cover;border-radius:14px;display:block;background:var(--bg-card);}
+
   .packages{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:22px;}
-  .pkg{background:var(--bg-card);border-radius:20px;padding:30px;border:1px solid #ffffff14;}
+  .pkg{background:var(--bg-card);border-radius:20px;overflow:hidden;border:1px solid #ffffff14;cursor:pointer;transition:transform .15s ease;}
+  .pkg:hover{transform:translateY(-4px);}
+  .pkg img{width:100%;height:170px;object-fit:cover;display:block;}
+  .pkg .body{padding:24px;}
   .pkg h3{font-size:1.3rem;margin-bottom:6px;}
-  .pkg .price{font-family:'JetBrains Mono',monospace;color:var(--yellow);font-size:1.7rem;font-weight:500;margin:10px 0;}
-  .pkg p{color:var(--cream-dim);font-size:.95rem;}
+  .pkg .price{font-family:'JetBrains Mono',monospace;color:var(--yellow);font-size:1.5rem;font-weight:500;margin:8px 0;}
+  .pkg p{color:var(--cream-dim);font-size:.9rem;}
+
+  .modal-overlay{display:none;position:fixed;inset:0;background:#0a0410cc;z-index:100;align-items:center;justify-content:center;padding:20px;}
+  .modal-overlay.show{display:flex;}
+  .modal{background:var(--bg-card);border-radius:20px;max-width:560px;width:100%;padding:30px;position:relative;max-height:88vh;overflow-y:auto;}
+  .modal .closeBtn{position:absolute;top:16px;right:16px;background:var(--pink);color:#1b1023;border:none;border-radius:50%;width:32px;height:32px;font-weight:700;cursor:pointer;font-size:1rem;}
+  .modal-img-wrap{position:relative;border-radius:14px;overflow:hidden;height:260px;background:var(--bg-card-2);margin-bottom:18px;}
+  .modal-img-wrap img{width:100%;height:100%;object-fit:cover;}
+  .modal-img-wrap .navBtn{position:absolute;top:50%;transform:translateY(-50%);background:#1b1023aa;color:var(--cream);border:none;width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:1.1rem;}
+  .modal-img-wrap .navBtn.left{left:10px;} .modal-img-wrap .navBtn.right{right:10px;}
+  .modal .price{font-family:'JetBrains Mono',monospace;color:var(--yellow);font-size:1.6rem;margin:10px 0;}
+
+  .authField{margin-bottom:14px;}
+  .authField label{display:block;font-size:.85rem;color:var(--cream-dim);margin-bottom:6px;}
+  .authField input{width:100%;padding:12px 14px;border-radius:10px;border:1px solid #ffffff22;background:var(--bg-card-2);color:var(--cream);font-family:inherit;}
+  .authSwitch{font-size:.85rem;color:var(--cream-dim);margin-top:14px;text-align:center;}
+  .authSwitch a{color:var(--mint);cursor:pointer;text-decoration:underline;}
+  #authError{color:var(--pink);font-size:.85rem;margin-top:8px;min-height:1.2em;}
+
   form{max-width:640px;background:var(--bg-card);padding:36px;border-radius:20px;border:1px solid #ffffff14;}
   form label{display:block;font-size:.85rem;color:var(--cream-dim);margin:16px 0 6px;}
   form input,form select,form textarea{width:100%;padding:12px 14px;border-radius:10px;border:1px solid #ffffff22;background:var(--bg-card-2);color:var(--cream);font-family:inherit;font-size:.95rem;}
   form textarea{resize:vertical;min-height:90px;}
-  form .btn{width:100%;text-align:center;border:none;cursor:pointer;}
+  form .btn{width:100%;text-align:center;}
   #formStatus{margin-top:14px;font-size:.9rem;}
-  .taken-dates{margin-top:10px;font-size:.8rem;color:var(--cream-dim);}
-  footer{padding:40px 6vw;text-align:center;color:var(--cream-dim);font-size:.85rem;}
+
+  .cal{background:var(--bg-card-2);border-radius:14px;padding:16px;margin-top:4px;}
+  .cal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+  .cal-head button{background:none;border:1px solid var(--cream-dim);color:var(--cream);width:30px;height:30px;border-radius:8px;cursor:pointer;}
+  .cal-head .label{font-family:'Baloo 2';font-weight:700;}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;text-align:center;}
+  .cal-grid .dow{color:var(--cream-dim);font-size:.7rem;padding:4px 0;}
+  .cal-grid button{background:var(--bg-card);border:none;color:var(--cream);padding:8px 0;border-radius:8px;cursor:pointer;font-size:.85rem;}
+  .cal-grid button:disabled{opacity:.25;cursor:not-allowed;}
+  .cal-grid button.taken{background:var(--pink);opacity:.5;cursor:not-allowed;}
+  .cal-grid button.selected{background:var(--mint);color:#1b1023;font-weight:700;}
+  .cal-selected{margin-top:10px;font-size:.85rem;color:var(--yellow);}
+
+  #myBookingsSection{display:none;}
+  .bookingRow{background:var(--bg-card);border-radius:14px;padding:18px 22px;margin-bottom:12px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+  .bookingRow .status{padding:4px 12px;border-radius:100px;font-size:.75rem;font-weight:600;height:fit-content;}
+  .status.neu{background:var(--yellow);color:#1b1023;}
+  .status.bestätigt{background:var(--mint);color:#1b1023;}
+  .status.abgelehnt{background:var(--pink);color:#1b1023;}
+
+  .footer-band{background:var(--yellow);color:#1b1023;text-align:center;padding:50px 6vw;}
+  .footer-band h2{font-size:2rem;}
+  .footer-band p{margin-top:8px;font-weight:500;}
+  footer{padding:30px 6vw;text-align:center;color:var(--cream-dim);font-size:.85rem;}
   footer a{color:var(--mint);}
 </style>
 </head>
@@ -62,17 +100,19 @@
 <div class="stripe"></div>
 <nav>
   <div class="logo">Candybar <span>Vogtland</span></div>
-  <div>
+  <div class="links">
     <a href="#pakete">Pakete</a>
     <a href="#galerie">Galerie</a>
     <a href="#buchen">Anfrage</a>
+    <a id="navAuth" onclick="openAuthModal()">Anmelden</a>
+    <a id="navMyBookings" style="display:none" onclick="scrollToMyBookings()">Meine Buchungen</a>
   </div>
 </nav>
 
 <header class="hero">
   <div class="eyebrow">Candybar für dein Event</div>
-  <h1>Süße Momente,<br><em>mietbar</em> statt selbst gebaut.</h1>
-  <p>Ich bringe eine liebevoll gestaltete Candybar zu deiner Feier — Hochzeit, Geburtstag, Firmenevent. Du wählst das Paket, ich kümmere mich um Aufbau, Deko und Nachschub.</p>
+  <h1>Süße Momente,<br><em>bereit zum Abholen.</em></h1>
+  <p>Ich stelle dir eine liebevoll zusammengestellte Candybar für deine Feier zusammen — Hochzeit, Geburtstag, Firmenevent. Du holst sie bei uns ab und baust sie selbst vor Ort auf. Die genauen Abhol-Details bekommst du nach deiner Anfrage per E-Mail.</p>
   <a class="btn" href="#buchen">Jetzt anfragen</a>
   <a class="btn outline" href="#pakete">Pakete ansehen</a>
 </header>
@@ -107,59 +147,165 @@
     <input type="tel" id="f_phone">
 
     <label>Datum der Veranstaltung</label>
-    <input type="date" id="f_date" required>
-    <div class="taken-dates" id="takenDates"></div>
+    <div class="cal" id="calendar"></div>
+    <div class="cal-selected" id="calSelected">Noch kein Datum ausgewählt.</div>
 
     <label>Gewünschtes Paket</label>
     <select id="f_package"></select>
 
     <label>Nachricht (optional)</label>
-    <textarea id="f_message" placeholder="Anzahl Gäste, Ort, besondere Wünsche…"></textarea>
+    <textarea id="f_message" placeholder="Anzahl Gäste, besondere Wünsche…"></textarea>
 
     <button class="btn" type="submit">Anfrage senden</button>
     <div id="formStatus"></div>
   </form>
 </section>
 
+<section id="myBookingsSection">
+  <div class="eyebrow">Dein Konto</div>
+  <h2>Meine Buchungen</h2>
+  <div id="myBookingsList"></div>
+</section>
+
+<div class="footer-band">
+  <h2>Candybar Hochglanz</h2>
+  <p>Süßes für jeden Anlass — Vogtland und Umgebung.</p>
+</div>
 <footer>
   Candybar Vogtland · <a href="mailto:hallo@example.com">hallo@example.com</a>
 </footer>
 
+<div class="modal-overlay" id="pkgModalOverlay">
+  <div class="modal">
+    <button class="closeBtn" onclick="closePkgModal()">×</button>
+    <div class="modal-img-wrap">
+      <button class="navBtn left" onclick="pkgModalImg(-1)">‹</button>
+      <img id="pkgModalImg" src="">
+      <button class="navBtn right" onclick="pkgModalImg(1)">›</button>
+    </div>
+    <h3 id="pkgModalName"></h3>
+    <div class="price" id="pkgModalPrice"></div>
+    <p id="pkgModalDesc" style="color:var(--cream-dim)"></p>
+  </div>
+</div>
+
+<div class="modal-overlay" id="authModalOverlay">
+  <div class="modal" style="max-width:400px">
+    <button class="closeBtn" onclick="closeAuthModal()">×</button>
+    <h3 id="authTitle">Anmelden</h3>
+    <div style="margin-top:20px">
+      <div class="authField">
+        <label>E-Mail</label>
+        <input type="email" id="auth_email">
+      </div>
+      <div class="authField">
+        <label>Passwort</label>
+        <input type="password" id="auth_password">
+      </div>
+      <button class="btn" style="width:100%" onclick="submitAuth()" id="authSubmitBtn">Anmelden</button>
+      <div id="authError"></div>
+      <div class="authSwitch" id="authSwitchText">
+        Noch kein Konto? <a onclick="toggleAuthMode()">Jetzt registrieren</a>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import {
-    getFirestore, collection, getDocs, doc, getDoc,
-    addDoc, serverTimestamp, query, orderBy
+    getFirestore, collection, getDocs, doc, getDoc, setDoc,
+    addDoc, serverTimestamp, query, where
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import {
+    getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+    onAuthStateChanged, signOut
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import { firebaseConfig } from "./firebase-config.js";
 
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
+  const auth = getAuth(app);
 
-  // --- Pakete laden ---
+  let currentUser = null;
+  let allPackages = [];
+  let takenDates = [];
+  let selectedDate = null;
+
+  function placeholderImg(name, color){
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300">
+      <rect width="400" height="300" fill="${color}"/>
+      <text x="50%" y="50%" font-family="sans-serif" font-size="26" fill="#1b1023"
+        text-anchor="middle" dominant-baseline="middle" font-weight="700">${name}</text>
+    </svg>`;
+    return "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svg)));
+  }
+
+  async function ensureDefaultPackages(){
+    const snap = await getDocs(collection(db,"packages"));
+    if(!snap.empty) return;
+    const defaults = [
+      {id:"basic", name:"Basic", price:"89 €",
+        description:"Candybar-Gestell zum Selbstbefüllen – für alle, die selbst dekorieren und befüllen möchten.",
+        images:[placeholderImg("Basic","#ff3d68")]},
+      {id:"komfort", name:"Komfort", price:"149 €",
+        description:"Gestell inklusive Gläsern und passender Deko – du bringst nur noch deine eigenen Süßigkeiten mit.",
+        images:[placeholderImg("Komfort","#ffd23f")]},
+      {id:"rundum", name:"Rundum-Sorglos", price:"229 €",
+        description:"Alles komplett – Gestell, Gläser, Deko und bereits befüllt mit Süßigkeiten.",
+        images:[placeholderImg("Rundum-Sorglos","#4ecdc4")]}
+    ];
+    for(const p of defaults){
+      await setDoc(doc(db,"packages",p.id), {name:p.name, price:p.price, description:p.description, images:p.images});
+    }
+  }
+
   async function loadPackages(){
+    await ensureDefaultPackages();
     const snap = await getDocs(collection(db,"packages"));
     const grid = document.getElementById("packagesGrid");
     const select = document.getElementById("f_package");
-    grid.innerHTML = "";
-    select.innerHTML = "";
-    if(snap.empty){
-      grid.innerHTML = "<p style='color:var(--cream-dim)'>Noch keine Pakete hinterlegt.</p>";
-      return;
-    }
+    grid.innerHTML = ""; select.innerHTML = "";
+    allPackages = [];
     snap.forEach(d=>{
-      const p = d.data();
+      const p = {id:d.id, ...d.data()};
+      allPackages.push(p);
+      const img = (p.images && p.images[0]) || placeholderImg(p.name||"","#ff3d68");
       grid.innerHTML += `
-        <div class="pkg">
-          <h3>${p.name || ""}</h3>
-          <div class="price">${p.price || ""}</div>
-          <p>${p.description || ""}</p>
+        <div class="pkg" onclick="openPkgModal('${d.id}')">
+          <img src="${img}">
+          <div class="body">
+            <h3>${p.name||""}</h3>
+            <div class="price">${p.price||""}</div>
+            <p>${p.description||""}</p>
+          </div>
         </div>`;
       select.innerHTML += `<option value="${p.name}">${p.name}</option>`;
     });
   }
 
-  // --- Galerie laden ---
+  let pkgModalIndex = 0, pkgModalPackage = null;
+  window.openPkgModal = function(id){
+    pkgModalPackage = allPackages.find(p=>p.id===id);
+    pkgModalIndex = 0;
+    document.getElementById("pkgModalName").textContent = pkgModalPackage.name || "";
+    document.getElementById("pkgModalPrice").textContent = pkgModalPackage.price || "";
+    document.getElementById("pkgModalDesc").textContent = pkgModalPackage.description || "";
+    renderPkgModalImg();
+    document.getElementById("pkgModalOverlay").classList.add("show");
+  }
+  window.closePkgModal = function(){ document.getElementById("pkgModalOverlay").classList.remove("show"); }
+  window.pkgModalImg = function(dir){
+    const imgs = pkgModalPackage.images || [];
+    if(imgs.length===0) return;
+    pkgModalIndex = (pkgModalIndex + dir + imgs.length) % imgs.length;
+    renderPkgModalImg();
+  }
+  function renderPkgModalImg(){
+    const imgs = pkgModalPackage.images || [placeholderImg(pkgModalPackage.name||"","#ff3d68")];
+    document.getElementById("pkgModalImg").src = imgs[pkgModalIndex] || imgs[0];
+  }
+
   async function loadGallery(){
     const snap = await getDoc(doc(db,"config","gallery"));
     const grid = document.getElementById("galleryGrid");
@@ -169,30 +315,173 @@
       grid.innerHTML = "<p style='color:var(--cream-dim)'>Noch keine Bilder hochgeladen.</p>";
       return;
     }
-    images.forEach(url=>{
-      grid.innerHTML += `<img src="${url}" alt="Candybar Foto" loading="lazy">`;
-    });
+    images.forEach(url=>{ grid.innerHTML += `<img src="${url}" alt="Candybar Foto" loading="lazy">`; });
   }
 
-  // --- Belegte Daten anzeigen ---
+  let calMonth = new Date().getMonth();
+  let calYear = new Date().getFullYear();
+
   async function loadTakenDates(){
-    const snap = await getDocs(query(collection(db,"bookings"), orderBy("eventDate")));
-    const dates = [];
+    const snap = await getDocs(collection(db,"bookings"));
+    takenDates = [];
     snap.forEach(d=>{
       const b = d.data();
-      if(b.status !== "abgelehnt") dates.push(b.eventDate);
+      if(b.status !== "abgelehnt") takenDates.push(b.eventDate);
     });
-    document.getElementById("takenDates").textContent =
-      dates.length ? "Bereits angefragt: " + dates.join(", ") : "";
+    renderCalendar();
+  }
+
+  function renderCalendar(){
+    const cal = document.getElementById("calendar");
+    const first = new Date(calYear, calMonth, 1);
+    const startWeekday = (first.getDay()+6)%7;
+    const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+    const monthNames = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+    let html = `<div class="cal-head">
+      <button onclick="calNav(-1)">‹</button>
+      <div class="label">${monthNames[calMonth]} ${calYear}</div>
+      <button onclick="calNav(1)">›</button>
+    </div>
+    <div class="cal-grid">
+      ${["Mo","Di","Mi","Do","Fr","Sa","So"].map(d=>`<div class="dow">${d}</div>`).join("")}`;
+    for(let i=0;i<startWeekday;i++) html += `<div></div>`;
+    const today = new Date(); today.setHours(0,0,0,0);
+    for(let day=1; day<=daysInMonth; day++){
+      const dateObj = new Date(calYear, calMonth, day);
+      const iso = dateObj.toISOString().slice(0,10);
+      const isPast = dateObj < today;
+      const isTaken = takenDates.includes(iso);
+      const isSelected = selectedDate === iso;
+      let cls = "";
+      if(isSelected) cls = "selected";
+      else if(isTaken) cls = "taken";
+      html += `<button ${isPast||isTaken?"disabled":""} class="${cls}" onclick="pickDate('${iso}')">${day}</button>`;
+    }
+    html += `</div>`;
+    cal.innerHTML = html;
+  }
+  window.calNav = function(dir){
+    calMonth += dir;
+    if(calMonth<0){calMonth=11;calYear--;}
+    if(calMonth>11){calMonth=0;calYear++;}
+    renderCalendar();
+  }
+  window.pickDate = function(iso){
+    selectedDate = iso;
+    document.getElementById("calSelected").textContent = "Ausgewählt: " + iso;
+    renderCalendar();
   }
 
   loadPackages();
   loadGallery();
   loadTakenDates();
 
-  // --- Formular absenden ---
+  let authMode = "login";
+  let pendingBookingSubmit = false;
+
+  window.openAuthModal = function(){
+    document.getElementById("authError").textContent = "";
+    document.getElementById("authModalOverlay").classList.add("show");
+  }
+  window.closeAuthModal = function(){
+    document.getElementById("authModalOverlay").classList.remove("show");
+    pendingBookingSubmit = false;
+  }
+  window.toggleAuthMode = function(){
+    authMode = authMode === "login" ? "register" : "login";
+    document.getElementById("authTitle").textContent = authMode === "login" ? "Anmelden" : "Registrieren";
+    document.getElementById("authSubmitBtn").textContent = authMode === "login" ? "Anmelden" : "Konto erstellen";
+    document.getElementById("authSwitchText").innerHTML = authMode === "login"
+      ? `Noch kein Konto? <a onclick="toggleAuthMode()">Jetzt registrieren</a>`
+      : `Schon ein Konto? <a onclick="toggleAuthMode()">Jetzt anmelden</a>`;
+  }
+  window.submitAuth = async function(){
+    const email = document.getElementById("auth_email").value;
+    const password = document.getElementById("auth_password").value;
+    const err = document.getElementById("authError");
+    err.textContent = "";
+    try{
+      if(authMode === "login"){
+        await signInWithEmailAndPassword(auth, email, password);
+      } else {
+        await createUserWithEmailAndPassword(auth, email, password);
+      }
+      closeAuthModal();
+      if(pendingBookingSubmit){
+        pendingBookingSubmit = false;
+        await actuallySubmitBooking();
+      }
+    }catch(e){
+      err.textContent = "Das hat nicht geklappt: " + (e.message || "unbekannter Fehler");
+    }
+  }
+
+  onAuthStateChanged(auth, (user)=>{
+    currentUser = user;
+    const navAuth = document.getElementById("navAuth");
+    const navMy = document.getElementById("navMyBookings");
+    if(user){
+      navAuth.textContent = "Abmelden";
+      navAuth.onclick = ()=>signOut(auth);
+      navMy.style.display = "inline";
+      document.getElementById("f_email").value = user.email;
+      loadMyBookings();
+    } else {
+      navAuth.textContent = "Anmelden";
+      navAuth.onclick = openAuthModal;
+      navMy.style.display = "none";
+      document.getElementById("myBookingsSection").style.display = "none";
+    }
+  });
+
+  window.scrollToMyBookings = function(){
+    document.getElementById("myBookingsSection").scrollIntoView({behavior:"smooth"});
+  }
+
+  async function loadMyBookings(){
+    if(!currentUser) return;
+    const section = document.getElementById("myBookingsSection");
+    section.style.display = "block";
+    const list = document.getElementById("myBookingsList");
+    list.innerHTML = "Lädt…";
+    const snap = await getDocs(query(collection(db,"bookings"), where("email","==",currentUser.email)));
+    if(snap.empty){
+      list.innerHTML = "<p style='color:var(--cream-dim)'>Du hast noch keine Buchungen.</p>";
+      return;
+    }
+    list.innerHTML = "";
+    snap.forEach(d=>{
+      const b = d.data();
+      list.innerHTML += `
+        <div class="bookingRow">
+          <div>
+            <strong>${b.package||""}</strong> — ${b.eventDate||""}<br>
+            <span style="color:var(--cream-dim);font-size:.85rem">${b.message||""}</span>
+          </div>
+          <div class="status ${b.status}">${b.status}</div>
+        </div>`;
+    });
+  }
+
   document.getElementById("bookingForm").addEventListener("submit", async (e)=>{
     e.preventDefault();
+    if(!selectedDate){
+      document.getElementById("calSelected").textContent = "Bitte wähl zuerst ein Datum aus.";
+      document.getElementById("calSelected").style.color = "var(--pink)";
+      return;
+    }
+    if(!currentUser){
+      pendingBookingSubmit = true;
+      authMode = "login";
+      document.getElementById("authTitle").textContent = "Erst anmelden";
+      document.getElementById("auth_email").value = document.getElementById("f_email").value;
+      openAuthModal();
+      return;
+    }
+    await actuallySubmitBooking();
+  });
+
+  async function actuallySubmitBooking(){
     const status = document.getElementById("formStatus");
     status.textContent = "Wird gesendet…";
     status.style.color = "var(--cream-dim)";
@@ -201,22 +490,28 @@
         name: document.getElementById("f_name").value,
         email: document.getElementById("f_email").value,
         phone: document.getElementById("f_phone").value,
-        eventDate: document.getElementById("f_date").value,
+        eventDate: selectedDate,
         package: document.getElementById("f_package").value,
         message: document.getElementById("f_message").value,
         status: "neu",
         createdAt: serverTimestamp()
       });
-      status.textContent = "Danke! Deine Anfrage ist da — ich melde mich bald.";
+      status.textContent = "Danke! Deine Anfrage ist da — ich melde mich bald per E-Mail.";
       status.style.color = "var(--mint)";
-      e.target.reset();
+      document.getElementById("f_name").value = "";
+      document.getElementById("f_phone").value = "";
+      document.getElementById("f_message").value = "";
+      selectedDate = null;
+      document.getElementById("calSelected").textContent = "Noch kein Datum ausgewählt.";
+      document.getElementById("calSelected").style.color = "var(--yellow)";
       loadTakenDates();
+      loadMyBookings();
     }catch(err){
       status.textContent = "Ups, das hat nicht geklappt. Versuch's nochmal.";
       status.style.color = "var(--pink)";
       console.error(err);
     }
-  });
+  }
 </script>
 </body>
 </html>
