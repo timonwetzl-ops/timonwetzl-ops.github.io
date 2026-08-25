@@ -37,16 +37,19 @@
   select.statusSelect{background:var(--bg-card-2);color:var(--cream);border:1px solid #ffffff22;border-radius:8px;padding:6px 8px;}
 
   .card{background:var(--bg-card);border-radius:16px;padding:20px;border:1px solid #ffffff14;margin-bottom:14px;}
-  .card .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
+  .card .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;align-items:center;}
   .card input{flex:1;min-width:120px;padding:10px 12px;border-radius:8px;border:1px solid #ffffff22;background:var(--bg-card-2);color:var(--cream);font-family:inherit;}
   .card button{padding:10px 16px;border-radius:8px;border:none;background:var(--mint);color:#1b1023;font-weight:600;cursor:pointer;}
   .card button.danger{background:var(--pink);}
   .addBtn{padding:12px 22px;border-radius:100px;background:var(--yellow);border:none;color:#1b1023;font-weight:700;cursor:pointer;margin-top:6px;}
   .imgList{display:flex;flex-wrap:wrap;gap:12px;margin-top:14px;}
   .imgList div{position:relative;}
-  .imgList img{width:120px;height:120px;object-fit:cover;border-radius:10px;}
-  .imgList button{position:absolute;top:4px;right:4px;background:var(--pink);color:#1b1023;border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;font-weight:700;}
+  .imgList img{width:110px;height:110px;object-fit:cover;border-radius:10px;}
+  .imgList button{position:absolute;top:4px;right:4px;background:var(--pink);color:#1b1023;border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;font-weight:700;padding:0;}
   .msg{font-size:.85rem;margin-top:8px;color:var(--mint);min-height:1.2em;}
+  .fileBtn{display:inline-block;padding:10px 18px;border-radius:8px;background:var(--bg-card-2);border:1px dashed var(--mint);color:var(--mint);cursor:pointer;font-size:.9rem;}
+  .fileBtn input{display:none;}
+  .uploading{color:var(--yellow);font-size:.85rem;}
 </style>
 </head>
 <body>
@@ -89,12 +92,12 @@
 
   <section>
     <h2>Galerie-Bilder</h2>
-    <p style="color:var(--cream-dim);font-size:.9rem;">Lade dein Bild z.B. bei <a href="https://imgbb.com" target="_blank" style="color:var(--mint)">imgbb.com</a> hoch und füge hier den Bild-Link ein.</p>
     <div class="card">
-      <div class="row">
-        <input type="text" id="newImgUrl" placeholder="https://... Bild-URL">
-        <button onclick="addImage()">Hinzufügen</button>
-      </div>
+      <label class="fileBtn">
+        📷 Bild hochladen
+        <input type="file" accept="image/*" onchange="handleGalleryUpload(event)">
+      </label>
+      <span class="uploading" id="galleryUploadMsg"></span>
     </div>
     <div class="imgList" id="imgList"></div>
   </section>
@@ -106,10 +109,14 @@
     getFirestore, collection, getDocs, doc, getDoc, setDoc,
     updateDoc, deleteDoc, addDoc
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import {
+    getStorage, ref, uploadBytes, getDownloadURL
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
   import { firebaseConfig, DASHBOARD_CODE } from "./firebase-config.js";
 
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
+  const storage = getStorage(app);
 
   window.checkCode = function(){
     const val = document.getElementById("codeInput").value;
@@ -122,12 +129,18 @@
     }
   }
 
-  let packagePrices = {}; // name -> numeric price for revenue calc
+  let packagePrices = {};
 
   async function loadAll(){
     await loadPackages();
     await loadBookings();
     await loadGallery();
+  }
+
+  async function uploadFile(file, pathPrefix){
+    const fileRef = ref(storage, `${pathPrefix}/${Date.now()}_${file.name}`);
+    await uploadBytes(fileRef, file);
+    return await getDownloadURL(fileRef);
   }
 
   // ---------- Bookings ----------
@@ -137,10 +150,7 @@
     body.innerHTML = "";
     let total = 0, confirmed = 0, revenue = 0;
     const rows = [];
-    snap.forEach(d=>{
-      const b = d.data();
-      rows.push({id:d.id, ...b});
-    });
+    snap.forEach(d=>{ rows.push({id:d.id, ...d.data()}); });
     rows.sort((a,b)=> (a.eventDate||"").localeCompare(b.eventDate||""));
 
     rows.forEach(b=>{
@@ -186,6 +196,7 @@
       const p = d.data();
       const numeric = parseFloat((p.price||"").toString().replace(/[^\d.,]/g,"").replace(",",".")) || 0;
       packagePrices[p.name] = numeric;
+      const images = p.images || [];
       list.innerHTML += `
         <div class="card" data-id="${d.id}">
           <div class="row">
@@ -198,6 +209,17 @@
           <div class="row">
             <button onclick="savePackage('${d.id}', this)">Speichern</button>
             <button class="danger" onclick="deletePackage('${d.id}')">Löschen</button>
+            <label class="fileBtn">
+              📷 Bild hinzufügen
+              <input type="file" accept="image/*" onchange="handlePackageUpload(event,'${d.id}')">
+            </label>
+          </div>
+          <div class="imgList" id="pkgImgs-${d.id}">
+            ${images.map((url,i)=>`
+              <div>
+                <img src="${url}">
+                <button onclick="removePackageImage('${d.id}', ${i})">×</button>
+              </div>`).join("")}
           </div>
         </div>`;
     });
@@ -221,14 +243,41 @@
   }
 
   window.addPackage = async function(){
-    await addDoc(collection(db,"packages"), {name:"Neues Paket", price:"0 €", description:""});
+    await addDoc(collection(db,"packages"), {name:"Neues Paket", price:"0 €", description:"", images:[]});
     loadPackages();
+  }
+
+  window.handlePackageUpload = async function(event, packageId){
+    const file = event.target.files[0];
+    if(!file) return;
+    event.target.disabled = true;
+    try{
+      const url = await uploadFile(file, `packages/${packageId}`);
+      const ref_ = doc(db,"packages",packageId);
+      const snap = await getDoc(ref_);
+      const images = (snap.data().images) || [];
+      images.push(url);
+      await updateDoc(ref_, {images});
+      loadPackages().then(loadBookings);
+    }catch(e){
+      alert("Upload fehlgeschlagen: " + e.message);
+    }
+    event.target.disabled = false;
+  }
+
+  window.removePackageImage = async function(packageId, index){
+    const ref_ = doc(db,"packages",packageId);
+    const snap = await getDoc(ref_);
+    const images = (snap.data().images) || [];
+    images.splice(index,1);
+    await updateDoc(ref_, {images});
+    loadPackages().then(loadBookings);
   }
 
   // ---------- Gallery ----------
   async function loadGallery(){
-    const ref = doc(db,"config","gallery");
-    const snap = await getDoc(ref);
+    const ref_ = doc(db,"config","gallery");
+    const snap = await getDoc(ref_);
     const images = snap.exists() ? (snap.data().images || []) : [];
     const list = document.getElementById("imgList");
     list.innerHTML = "";
@@ -241,25 +290,33 @@
     });
   }
 
-  window.addImage = async function(){
-    const input = document.getElementById("newImgUrl");
-    const url = input.value.trim();
-    if(!url) return;
-    const ref = doc(db,"config","gallery");
-    const snap = await getDoc(ref);
-    const images = snap.exists() ? (snap.data().images || []) : [];
-    images.push(url);
-    await setDoc(ref, {images});
-    input.value = "";
-    loadGallery();
+  window.handleGalleryUpload = async function(event){
+    const file = event.target.files[0];
+    if(!file) return;
+    const msg = document.getElementById("galleryUploadMsg");
+    msg.textContent = "Lädt hoch…";
+    try{
+      const url = await uploadFile(file, "gallery");
+      const ref_ = doc(db,"config","gallery");
+      const snap = await getDoc(ref_);
+      const images = snap.exists() ? (snap.data().images || []) : [];
+      images.push(url);
+      await setDoc(ref_, {images});
+      msg.textContent = "Hochgeladen ✓";
+      setTimeout(()=>msg.textContent="",1500);
+      loadGallery();
+    }catch(e){
+      msg.textContent = "Fehler beim Hochladen";
+      alert(e.message);
+    }
   }
 
   window.removeImage = async function(index){
-    const ref = doc(db,"config","gallery");
-    const snap = await getDoc(ref);
+    const ref_ = doc(db,"config","gallery");
+    const snap = await getDoc(ref_);
     const images = snap.exists() ? (snap.data().images || []) : [];
     images.splice(index,1);
-    await setDoc(ref, {images});
+    await setDoc(ref_, {images});
     loadGallery();
   }
 </script>
