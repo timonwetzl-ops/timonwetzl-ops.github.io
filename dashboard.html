@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Zuckerwerk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#1b1023; --bg-card:#26152f; --bg-card-2:#2f1a3a;
+    --pink:#ff3d68; --yellow:#ffd23f; --mint:#4ecdc4;
+    --cream:#f5efe6; --cream-dim:#c9bfd6;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--cream);font-family:'Work Sans',sans-serif;}
+  h1,h2,h3{font-family:'Baloo 2',sans-serif;margin:0;}
+
+  #gate{min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:20px;text-align:center;}
+  #gate input{margin-top:20px;padding:14px 18px;border-radius:10px;border:1px solid #ffffff30;background:var(--bg-card);color:var(--cream);font-size:1.1rem;text-align:center;letter-spacing:3px;}
+  #gate button{margin-top:16px;padding:12px 28px;border-radius:100px;background:var(--pink);border:none;color:#1b1023;font-weight:700;cursor:pointer;font-size:1rem;}
+  #gateError{margin-top:12px;color:var(--pink);font-size:.9rem;min-height:1.2em;}
+
+  #app{display:none;max-width:1100px;margin:0 auto;padding:5vh 5vw;}
+  .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:34px;flex-wrap:wrap;gap:14px;}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:40px;}
+  .stat{background:var(--bg-card);border-radius:16px;padding:22px;border:1px solid #ffffff14;}
+  .stat .label{font-size:.8rem;color:var(--cream-dim);text-transform:uppercase;letter-spacing:1px;}
+  .stat .value{font-family:'JetBrains Mono',monospace;font-size:1.8rem;color:var(--yellow);margin-top:6px;}
+
+  section{margin-bottom:50px;}
+  section h2{font-size:1.4rem;margin-bottom:18px;}
+
+  table{width:100%;border-collapse:collapse;background:var(--bg-card);border-radius:14px;overflow:hidden;}
+  th,td{text-align:left;padding:12px 14px;font-size:.9rem;border-bottom:1px solid #ffffff10;}
+  th{color:var(--cream-dim);font-weight:600;text-transform:uppercase;font-size:.75rem;letter-spacing:1px;}
+  select.statusSelect{background:var(--bg-card-2);color:var(--cream);border:1px solid #ffffff22;border-radius:8px;padding:6px 8px;}
+
+  .card{background:var(--bg-card);border-radius:16px;padding:20px;border:1px solid #ffffff14;margin-bottom:14px;}
+  .card .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
+  .card input{flex:1;min-width:120px;padding:10px 12px;border-radius:8px;border:1px solid #ffffff22;background:var(--bg-card-2);color:var(--cream);font-family:inherit;}
+  .card button{padding:10px 16px;border-radius:8px;border:none;background:var(--mint);color:#1b1023;font-weight:600;cursor:pointer;}
+  .card button.danger{background:var(--pink);}
+  .addBtn{padding:12px 22px;border-radius:100px;background:var(--yellow);border:none;color:#1b1023;font-weight:700;cursor:pointer;margin-top:6px;}
+  .imgList{display:flex;flex-wrap:wrap;gap:12px;margin-top:14px;}
+  .imgList div{position:relative;}
+  .imgList img{width:120px;height:120px;object-fit:cover;border-radius:10px;}
+  .imgList button{position:absolute;top:4px;right:4px;background:var(--pink);color:#1b1023;border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;font-weight:700;}
+  .msg{font-size:.85rem;margin-top:8px;color:var(--mint);min-height:1.2em;}
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <h1>Dashboard</h1>
+  <p style="color:var(--cream-dim)">Gib deinen Zugangscode ein</p>
+  <input type="password" id="codeInput" placeholder="••••••" maxlength="20">
+  <br>
+  <button onclick="checkCode()">Rein</button>
+  <div id="gateError"></div>
+</div>
+
+<div id="app">
+  <div class="top">
+    <h1>Zuckerwerk — Übersicht</h1>
+    <button onclick="location.reload()" style="background:none;border:1px solid var(--cream-dim);color:var(--cream-dim);padding:8px 16px;border-radius:100px;cursor:pointer;">Abmelden</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="label">Anfragen gesamt</div><div class="value" id="statTotal">–</div></div>
+    <div class="stat"><div class="label">Bestätigt</div><div class="value" id="statConfirmed">–</div></div>
+    <div class="stat"><div class="label">Umsatz (bestätigt)</div><div class="value" id="statRevenue">–</div></div>
+  </div>
+
+  <section>
+    <h2>Buchungen</h2>
+    <table>
+      <thead><tr><th>Datum</th><th>Name</th><th>Paket</th><th>Kontakt</th><th>Nachricht</th><th>Status</th></tr></thead>
+      <tbody id="bookingsBody"></tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Pakete & Preise</h2>
+    <div id="packagesList"></div>
+    <button class="addBtn" onclick="addPackage()">+ Neues Paket</button>
+    <div class="msg" id="pkgMsg"></div>
+  </section>
+
+  <section>
+    <h2>Galerie-Bilder</h2>
+    <p style="color:var(--cream-dim);font-size:.9rem;">Lade dein Bild z.B. bei <a href="https://imgbb.com" target="_blank" style="color:var(--mint)">imgbb.com</a> hoch und füge hier den Bild-Link ein.</p>
+    <div class="card">
+      <div class="row">
+        <input type="text" id="newImgUrl" placeholder="https://... Bild-URL">
+        <button onclick="addImage()">Hinzufügen</button>
+      </div>
+    </div>
+    <div class="imgList" id="imgList"></div>
+  </section>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getFirestore, collection, getDocs, doc, getDoc, setDoc,
+    updateDoc, deleteDoc, addDoc
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { firebaseConfig, DASHBOARD_CODE } from "./firebase-config.js";
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  window.checkCode = function(){
+    const val = document.getElementById("codeInput").value;
+    if(val === DASHBOARD_CODE){
+      document.getElementById("gate").style.display = "none";
+      document.getElementById("app").style.display = "block";
+      loadAll();
+    } else {
+      document.getElementById("gateError").textContent = "Falscher Code, versuch's nochmal.";
+    }
+  }
+
+  let packagePrices = {}; // name -> numeric price for revenue calc
+
+  async function loadAll(){
+    await loadPackages();
+    await loadBookings();
+    await loadGallery();
+  }
+
+  // ---------- Bookings ----------
+  async function loadBookings(){
+    const snap = await getDocs(collection(db,"bookings"));
+    const body = document.getElementById("bookingsBody");
+    body.innerHTML = "";
+    let total = 0, confirmed = 0, revenue = 0;
+    const rows = [];
+    snap.forEach(d=>{
+      const b = d.data();
+      rows.push({id:d.id, ...b});
+    });
+    rows.sort((a,b)=> (a.eventDate||"").localeCompare(b.eventDate||""));
+
+    rows.forEach(b=>{
+      total++;
+      if(b.status === "bestätigt"){
+        confirmed++;
+        revenue += packagePrices[b.package] || 0;
+      }
+      body.innerHTML += `
+        <tr>
+          <td>${b.eventDate || ""}</td>
+          <td>${b.name || ""}</td>
+          <td>${b.package || ""}</td>
+          <td>${b.email || ""}<br>${b.phone || ""}</td>
+          <td>${b.message || ""}</td>
+          <td>
+            <select class="statusSelect" onchange="updateStatus('${b.id}', this.value)">
+              <option value="neu" ${b.status==="neu"?"selected":""}>Neu</option>
+              <option value="bestätigt" ${b.status==="bestätigt"?"selected":""}>Bestätigt</option>
+              <option value="abgelehnt" ${b.status==="abgelehnt"?"selected":""}>Abgelehnt</option>
+            </select>
+          </td>
+        </tr>`;
+    });
+
+    document.getElementById("statTotal").textContent = total;
+    document.getElementById("statConfirmed").textContent = confirmed;
+    document.getElementById("statRevenue").textContent = revenue.toFixed(2) + " €";
+  }
+
+  window.updateStatus = async function(id, status){
+    await updateDoc(doc(db,"bookings",id), {status});
+    loadBookings();
+  }
+
+  // ---------- Packages ----------
+  async function loadPackages(){
+    const snap = await getDocs(collection(db,"packages"));
+    const list = document.getElementById("packagesList");
+    list.innerHTML = "";
+    packagePrices = {};
+    snap.forEach(d=>{
+      const p = d.data();
+      const numeric = parseFloat((p.price||"").toString().replace(/[^\d.,]/g,"").replace(",",".")) || 0;
+      packagePrices[p.name] = numeric;
+      list.innerHTML += `
+        <div class="card" data-id="${d.id}">
+          <div class="row">
+            <input type="text" value="${p.name||""}" placeholder="Name" class="pName">
+            <input type="text" value="${p.price||""}" placeholder="Preis, z.B. 99 €" class="pPrice">
+          </div>
+          <div class="row">
+            <input type="text" value="${p.description||""}" placeholder="Beschreibung" class="pDesc" style="flex:3">
+          </div>
+          <div class="row">
+            <button onclick="savePackage('${d.id}', this)">Speichern</button>
+            <button class="danger" onclick="deletePackage('${d.id}')">Löschen</button>
+          </div>
+        </div>`;
+    });
+  }
+
+  window.savePackage = async function(id, btn){
+    const card = btn.closest(".card");
+    const name = card.querySelector(".pName").value;
+    const price = card.querySelector(".pPrice").value;
+    const description = card.querySelector(".pDesc").value;
+    await updateDoc(doc(db,"packages",id), {name, price, description});
+    document.getElementById("pkgMsg").textContent = "Gespeichert ✓";
+    setTimeout(()=>document.getElementById("pkgMsg").textContent = "", 1500);
+    loadPackages().then(loadBookings);
+  }
+
+  window.deletePackage = async function(id){
+    if(!confirm("Paket wirklich löschen?")) return;
+    await deleteDoc(doc(db,"packages",id));
+    loadPackages().then(loadBookings);
+  }
+
+  window.addPackage = async function(){
+    await addDoc(collection(db,"packages"), {name:"Neues Paket", price:"0 €", description:""});
+    loadPackages();
+  }
+
+  // ---------- Gallery ----------
+  async function loadGallery(){
+    const ref = doc(db,"config","gallery");
+    const snap = await getDoc(ref);
+    const images = snap.exists() ? (snap.data().images || []) : [];
+    const list = document.getElementById("imgList");
+    list.innerHTML = "";
+    images.forEach((url, i)=>{
+      list.innerHTML += `
+        <div>
+          <img src="${url}">
+          <button onclick="removeImage(${i})">×</button>
+        </div>`;
+    });
+  }
+
+  window.addImage = async function(){
+    const input = document.getElementById("newImgUrl");
+    const url = input.value.trim();
+    if(!url) return;
+    const ref = doc(db,"config","gallery");
+    const snap = await getDoc(ref);
+    const images = snap.exists() ? (snap.data().images || []) : [];
+    images.push(url);
+    await setDoc(ref, {images});
+    input.value = "";
+    loadGallery();
+  }
+
+  window.removeImage = async function(index){
+    const ref = doc(db,"config","gallery");
+    const snap = await getDoc(ref);
+    const images = snap.exists() ? (snap.data().images || []) : [];
+    images.splice(index,1);
+    await setDoc(ref, {images});
+    loadGallery();
+  }
+</script>
+</body>
+</html>
