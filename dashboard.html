@@ -2,323 +2,162 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard — Candybar Vogtland</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Candy Bar Vogtland</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --bg:#1b1023; --bg-card:#26152f; --bg-card-2:#2f1a3a;
-    --pink:#ff3d68; --yellow:#ffd23f; --mint:#4ecdc4;
-    --cream:#f5efe6; --cream-dim:#c9bfd6;
-  }
-  *{box-sizing:border-box;}
-  body{margin:0;background:var(--bg);color:var(--cream);font-family:'Work Sans',sans-serif;}
-  h1,h2,h3{font-family:'Baloo 2',sans-serif;margin:0;}
-
-  #gate{min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:20px;text-align:center;}
-  #gate input{margin-top:20px;padding:14px 18px;border-radius:10px;border:1px solid #ffffff30;background:var(--bg-card);color:var(--cream);font-size:1.1rem;text-align:center;letter-spacing:3px;}
-  #gate button{margin-top:16px;padding:12px 28px;border-radius:100px;background:var(--pink);border:none;color:#1b1023;font-weight:700;cursor:pointer;font-size:1rem;}
-  #gateError{margin-top:12px;color:var(--pink);font-size:.9rem;min-height:1.2em;}
-
-  #app{display:none;max-width:1100px;margin:0 auto;padding:5vh 5vw;}
-  .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:34px;flex-wrap:wrap;gap:14px;}
-  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:40px;}
-  .stat{background:var(--bg-card);border-radius:16px;padding:22px;border:1px solid #ffffff14;}
-  .stat .label{font-size:.8rem;color:var(--cream-dim);text-transform:uppercase;letter-spacing:1px;}
-  .stat .value{font-family:'JetBrains Mono',monospace;font-size:1.8rem;color:var(--yellow);margin-top:6px;}
-
-  section{margin-bottom:50px;}
-  section h2{font-size:1.4rem;margin-bottom:18px;}
-
-  table{width:100%;border-collapse:collapse;background:var(--bg-card);border-radius:14px;overflow:hidden;}
-  th,td{text-align:left;padding:12px 14px;font-size:.9rem;border-bottom:1px solid #ffffff10;}
-  th{color:var(--cream-dim);font-weight:600;text-transform:uppercase;font-size:.75rem;letter-spacing:1px;}
-  select.statusSelect{background:var(--bg-card-2);color:var(--cream);border:1px solid #ffffff22;border-radius:8px;padding:6px 8px;}
-
-  .card{background:var(--bg-card);border-radius:16px;padding:20px;border:1px solid #ffffff14;margin-bottom:14px;}
-  .card .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;align-items:center;}
-  .card input{flex:1;min-width:120px;padding:10px 12px;border-radius:8px;border:1px solid #ffffff22;background:var(--bg-card-2);color:var(--cream);font-family:inherit;}
-  .card button{padding:10px 16px;border-radius:8px;border:none;background:var(--mint);color:#1b1023;font-weight:600;cursor:pointer;}
-  .card button.danger{background:var(--pink);}
-  .addBtn{padding:12px 22px;border-radius:100px;background:var(--yellow);border:none;color:#1b1023;font-weight:700;cursor:pointer;margin-top:6px;}
-  .imgList{display:flex;flex-wrap:wrap;gap:12px;margin-top:14px;}
-  .imgList div{position:relative;}
-  .imgList img{width:110px;height:110px;object-fit:cover;border-radius:10px;}
-  .imgList button{position:absolute;top:4px;right:4px;background:var(--pink);color:#1b1023;border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;font-weight:700;padding:0;}
-  .msg{font-size:.85rem;margin-top:8px;color:var(--mint);min-height:1.2em;}
-  .fileBtn{display:inline-block;padding:10px 18px;border-radius:8px;background:var(--bg-card-2);border:1px dashed var(--mint);color:var(--mint);cursor:pointer;font-size:.9rem;}
-  .fileBtn input{display:none;}
-  .uploading{color:var(--yellow);font-size:.85rem;}
+:root{--bg:#1b1023;--card:#26152f;--card2:#2f1a3a;--pink:#ff3d68;--yellow:#ffd23f;--mint:#4ecdc4;--cream:#f5efe6;--dim:#c9bfd6}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--cream);font-family:"Work Sans",sans-serif;line-height:1.5}h1,h2,h3{font-family:"Baloo 2",sans-serif;margin:0}button,a{font:inherit}.stripe{height:10px;background:repeating-linear-gradient(135deg,var(--pink) 0 14px,var(--yellow) 14px 28px)}
+nav{position:sticky;top:0;z-index:50;background:#1b1023ee;backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:space-between;padding:16px 6vw;border-bottom:1px solid #ffffff12}
+.logo{font:800 1.35rem "Baloo 2";text-decoration:none}.logo span{color:var(--pink)}.links{display:flex;gap:22px;align-items:center;flex-wrap:wrap}.links a{color:var(--dim);text-decoration:none;cursor:pointer}.links a:hover{color:var(--yellow)}
+main{min-height:70vh}.page{display:none;padding:7vh 6vw}.page.active{display:block}.hero{display:block;text-align:center;padding:10vh 6vw 12vh}.hero h1{font-size:clamp(2.6rem,7vw,4.8rem);line-height:1.05}.hero em{color:var(--pink);font-style:normal}.hero p{max-width:700px;margin:20px auto;color:var(--dim);font-size:1.08rem}.btn{display:inline-block;padding:14px 25px;border:0;border-radius:999px;background:var(--pink);color:#1b1023;font-weight:700;cursor:pointer;text-decoration:none;margin:8px 6px}.btn.alt{background:transparent;color:var(--mint);border:2px solid var(--mint)}
+.eyebrow{color:var(--mint);font-size:.8rem;text-transform:uppercase;letter-spacing:2px;font-weight:700}h2{font-size:clamp(2rem,4vw,2.8rem);margin:8px 0 30px}.heroImg,.legal,.booking,.formbox{background:var(--card);border:1px solid #ffffff14;border-radius:20px}.heroImg{max-width:900px;height:360px;margin:35px auto 0;overflow:hidden}.heroImg img{width:100%;height:100%;object-fit:cover}.placeholder{display:grid;place-items:center;height:100%;color:var(--dim);font-size:1.2rem}
+.packages,.gallery,.bookings{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px}.pkg{background:var(--card);border:1px solid #ffffff14;border-radius:20px;overflow:hidden;cursor:pointer;transition:.15s}.pkg:hover{transform:translateY(-4px)}.pkg img{width:100%;height:190px;object-fit:cover}.pkg .body{padding:22px}.price{color:var(--yellow);font-weight:700;font-size:1.35rem}.muted{color:var(--dim)}.gallery img{width:100%;height:230px;object-fit:cover;border-radius:16px;background:var(--card)}
+.formbox{max-width:700px;padding:30px}.field{margin:15px 0}.field label{display:block;color:var(--dim);font-size:.85rem;margin-bottom:6px}.field input,.field select,.field textarea{width:100%;padding:12px 14px;border-radius:10px;border:1px solid #ffffff22;background:var(--card2);color:var(--cream)}textarea{min-height:100px;resize:vertical}
+.cal{background:var(--card2);padding:15px;border-radius:14px}.calhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.calhead button{background:transparent;color:var(--cream);border:1px solid #ffffff44;border-radius:8px;padding:5px 12px;cursor:pointer}.calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}.calgrid span{padding:6px;text-align:center;color:var(--dim);font-size:.75rem}.calgrid button{border:0;border-radius:8px;padding:9px 2px;background:var(--card);color:var(--cream);cursor:pointer}.calgrid button.taken{background:var(--pink);opacity:.75;cursor:not-allowed}.calgrid button.selected{background:var(--mint);color:#1b1023;font-weight:700}.calgrid button:disabled{opacity:.25}.selectedDate{margin-top:8px;color:var(--yellow)}
+.booking{padding:18px}.status{display:inline-block;padding:4px 10px;border-radius:99px;font-size:.75rem;font-weight:700}.status.neu{background:var(--yellow);color:#1b1023}.status.bestätigt{background:var(--mint);color:#1b1023}.status.abgelehnt{background:var(--pink);color:#1b1023}
+footer{background:#120a18;color:var(--dim);padding:40px 6vw;margin-top:5vh;text-align:center}footer a{color:var(--mint);margin:0 8px;cursor:pointer}
+.modal{position:fixed;inset:0;background:#08030dcc;display:none;z-index:100;align-items:center;justify-content:center;padding:20px}.modal.show{display:flex}.modalbox{background:var(--card);border-radius:20px;max-width:650px;width:100%;max-height:90vh;overflow:auto;padding:28px;position:relative}.close{position:absolute;right:14px;top:14px;border:0;border-radius:50%;background:var(--pink);width:34px;height:34px;cursor:pointer}.modalbox img{width:100%;height:300px;object-fit:cover;border-radius:14px}.modalbox .btn{width:100%}
+@media(max-width:700px){nav{align-items:flex-start}.links{gap:12px;font-size:.85rem}.heroImg{height:230px}.page{padding:6vh 5vw}.modalbox img{height:220px}}
 </style>
 </head>
 <body>
+<div class="stripe"></div>
+<nav>
+  <a class="logo" onclick="showPage('home')">Candy Bar <span>Vogtland</span></a>
+  <div class="links">
+    <a onclick="showPage('packages')">Pakete</a>
+    <a onclick="showPage('gallery')">Galerie</a>
+    <a onclick="showPage('request')">Anfragen</a>
+    <a id="myNav" onclick="showPage('bookings')" style="display:none">Meine Buchungen</a>
+    <a id="authNav" onclick="openAuth()">Anmelden</a>
+  </div>
+</nav>
 
-<div id="gate">
-  <h1>Dashboard</h1>
-  <p style="color:var(--cream-dim)">Gib deinen Zugangscode ein</p>
-  <input type="password" id="codeInput" placeholder="••••••" maxlength="20">
-  <br>
-  <button onclick="checkCode()">Rein</button>
-  <div id="gateError"></div>
+<main>
+<section id="home" class="page active hero">
+  <div class="eyebrow">Candy Bar für dein Event</div>
+  <h1>Süße Momente,<br><em>bereit für deine Feier.</em></h1>
+  <p>Eine liebevoll zusammengestellte Candy Bar für Hochzeit, Geburtstag, Firmenevent und andere besondere Tage.</p>
+  <a class="btn" onclick="showPage('request')">Jetzt anfragen</a>
+  <a class="btn alt" onclick="showPage('packages')">Pakete ansehen</a>
+  <div class="heroImg" id="heroImage"><div class="placeholder">Dein Candy-Bar-Hauptbild</div></div>
+</section>
+
+<section id="packages" class="page">
+  <div class="eyebrow">Pakete</div><h2>Wähl dein Paket</h2>
+  <div class="packages" id="packagesGrid">Lädt…</div>
+</section>
+
+<section id="gallery" class="page">
+  <div class="eyebrow">Galerie</div><h2>So sieht's aus</h2>
+  <div class="gallery" id="galleryGrid">Lädt…</div>
+</section>
+
+<section id="request" class="page">
+  <div class="eyebrow">Anfrage</div><h2>Termin & Anfrage</h2>
+  <div class="formbox">
+    <div id="selectedPackageBox" class="booking" style="display:none;margin-bottom:18px"></div>
+    <form id="bookingForm">
+      <div class="field"><label>Name</label><input id="f_name" required></div>
+      <div class="field"><label>E-Mail</label><input id="f_email" type="email" required></div>
+      <div class="field"><label>Telefon</label><input id="f_phone" type="tel"></div>
+      <div class="field"><label>Datum</label><div class="cal" id="calendar"></div><div class="selectedDate" id="calSelected">Noch kein Datum ausgewählt.</div></div>
+      <div class="field"><label>Paket</label><select id="f_package"></select></div>
+      <div class="field"><label>Veranstaltungsort</label><input id="f_location"></div>
+      <div class="field"><label>Nachricht</label><textarea id="f_message"></textarea></div>
+      <button class="btn" type="submit">Anfrage senden</button>
+      <div id="formStatus" class="muted"></div>
+    </form>
+  </div>
+</section>
+
+<section id="bookings" class="page">
+  <div class="eyebrow">Dein Konto</div><h2>Meine Buchungen</h2>
+  <div id="myBookingsList" class="bookings"></div>
+</section>
+
+<section id="legal" class="page">
+  <div class="eyebrow">Informationen</div><h2 id="legalTitle">Impressum</h2>
+  <div class="legal" style="padding:28px"><div id="legalText" class="muted">Lädt…</div></div>
+</section>
+</main>
+
+<footer>
+  <strong>Candy Bar Vogtland</strong><br><br>
+  <a onclick="showLegal('impressum')">Impressum</a>
+  <a onclick="showLegal('agb')">AGB</a>
+  <a onclick="showLegal('datenschutz')">Datenschutz</a>
+</footer>
+
+<div class="modal" id="pkgModal">
+  <div class="modalbox">
+    <button class="close" onclick="closeModal()">×</button>
+    <img id="modalImg" src="">
+    <h2 id="modalName" style="margin-top:18px"></h2>
+    <div class="price" id="modalPrice"></div>
+    <p id="modalDesc" class="muted"></p>
+    <button class="btn" onclick="requestSelectedPackage()">Jetzt anfragen</button>
+  </div>
 </div>
 
-<div id="app">
-  <div class="top">
-    <h1>Candybar Vogtland — Übersicht</h1>
-    <button onclick="location.reload()" style="background:none;border:1px solid var(--cream-dim);color:var(--cream-dim);padding:8px 16px;border-radius:100px;cursor:pointer;">Abmelden</button>
+<div class="modal" id="authModal">
+  <div class="modalbox" style="max-width:420px">
+    <button class="close" onclick="closeAuth()">×</button>
+    <h2 id="authTitle">Anmelden</h2>
+    <div class="field"><label>E-Mail</label><input id="authEmail" type="email"></div>
+    <div class="field"><label>Passwort</label><input id="authPassword" type="password"></div>
+    <button class="btn" style="width:100%" onclick="submitAuth()">Anmelden</button>
+    <p id="authSwitch" class="muted" style="text-align:center;cursor:pointer" onclick="toggleAuth()">Noch kein Konto? Registrieren</p>
+    <div id="authError" style="color:var(--pink)"></div>
   </div>
-
-  <div class="stats">
-    <div class="stat"><div class="label">Anfragen gesamt</div><div class="value" id="statTotal">–</div></div>
-    <div class="stat"><div class="label">Bestätigt</div><div class="value" id="statConfirmed">–</div></div>
-    <div class="stat"><div class="label">Umsatz (bestätigt)</div><div class="value" id="statRevenue">–</div></div>
-  </div>
-
-  <section>
-    <h2>Buchungen</h2>
-    <table>
-      <thead><tr><th>Datum</th><th>Name</th><th>Paket</th><th>Kontakt</th><th>Nachricht</th><th>Status</th></tr></thead>
-      <tbody id="bookingsBody"></tbody>
-    </table>
-  </section>
-
-  <section>
-    <h2>Pakete & Preise</h2>
-    <div id="packagesList"></div>
-    <button class="addBtn" onclick="addPackage()">+ Neues Paket</button>
-    <div class="msg" id="pkgMsg"></div>
-  </section>
-
-  <section>
-    <h2>Galerie-Bilder</h2>
-    <div class="card">
-      <label class="fileBtn">
-        📷 Bild hochladen
-        <input type="file" accept="image/*" onchange="handleGalleryUpload(event)">
-      </label>
-      <span class="uploading" id="galleryUploadMsg"></span>
-    </div>
-    <div class="imgList" id="imgList"></div>
-  </section>
 </div>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import {
-    getFirestore, collection, getDocs, doc, getDoc, setDoc,
-    updateDoc, deleteDoc, addDoc
-  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-  import {
-    getStorage, ref, uploadBytes, getDownloadURL
-  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
-  import { firebaseConfig, DASHBOARD_CODE } from "./firebase-config.js";
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {getFirestore,collection,getDocs,doc,getDoc,addDoc,serverTimestamp,query,where} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,onAuthStateChanged,signOut} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {firebaseConfig} from "./firebase-config.js";
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-  const storage = getStorage(app);
+const app=initializeApp(firebaseConfig),db=getFirestore(app),auth=getAuth(app);
+let packages=[],selectedPackage=null,selectedDate=null,takenDates=[],calDate=new Date(),authMode="login",pendingSubmit=false;
 
-  window.checkCode = function(){
-    const val = document.getElementById("codeInput").value;
-    if(val === DASHBOARD_CODE){
-      document.getElementById("gate").style.display = "none";
-      document.getElementById("app").style.display = "block";
-      loadAll();
-    } else {
-      document.getElementById("gateError").textContent = "Falscher Code, versuch's nochmal.";
-    }
-  }
+const ph=(name)=>"data:image/svg+xml;charset=UTF-8,"+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500"><rect width="100%" height="100%" fill="#2f1a3a"/><text x="50%" y="50%" fill="#c9bfd6" font-family="sans-serif" font-size="32" text-anchor="middle">${name}</text></svg>`);
 
-  let packagePrices = {};
+window.showPage=(id)=>{document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");window.scrollTo({top:0,behavior:"smooth"});if(id==="bookings")loadBookings();};
+window.showLegal=async(type)=>{const names={impressum:"Impressum",agb:"AGB",datenschutz:"Datenschutz"};document.getElementById("legalTitle").textContent=names[type];const s=await getDoc(doc(db,"config","legal"));const text=s.exists()?(s.data()[type]||"Noch kein Inhalt hinterlegt."):"Noch kein Inhalt hinterlegt.";document.getElementById("legalText").innerHTML=text.replace(/\n/g,"<br>");showPage("legal")};
 
-  async function loadAll(){
-    await loadPackages();
-    await loadBookings();
-    await loadGallery();
-  }
+async function loadPackages(){
+ const s=await getDocs(collection(db,"packages")),seen=new Set();packages=[];
+ s.forEach(d=>{const p={id:d.id,...d.data()};const key=(p.name||"").trim().toLowerCase();if(!seen.has(key)&&["basic","comfort","rundum sorglos"].includes(key)){seen.add(key);packages.push(p)}});
+ const grid=document.getElementById("packagesGrid"),sel=document.getElementById("f_package");grid.innerHTML="";sel.innerHTML="";
+ packages.forEach(p=>{const img=p.images?.[0]||ph(p.name);grid.innerHTML+=`<article class="pkg" onclick="openPackage('${p.id}')"><img src="${img}" alt="${p.name}"><div class="body"><h3>${p.name}</h3><div class="price">${p.price||""}</div><p class="muted">${p.description||""}</p></div></article>`;sel.innerHTML+=`<option>${p.name}</option>`});
+ if(selectedPackage) selectPackage(selectedPackage.id);
+}
+window.openPackage=(id)=>{selectedPackage=packages.find(p=>p.id===id);document.getElementById("modalName").textContent=selectedPackage.name;document.getElementById("modalPrice").textContent=selectedPackage.price||"";document.getElementById("modalDesc").textContent=selectedPackage.description||"";document.getElementById("modalImg").src=selectedPackage.images?.[0]||ph(selectedPackage.name);document.getElementById("pkgModal").classList.add("show")};
+window.closeModal=()=>document.getElementById("pkgModal").classList.remove("show");
+function selectPackage(id){const p=packages.find(x=>x.id===id);if(!p)return;selectedPackage=p;document.getElementById("f_package").value=p.name;document.getElementById("selectedPackageBox").style.display="block";document.getElementById("selectedPackageBox").innerHTML=`<img src="${p.images?.[0]||ph(p.name)}" style="width:100%;max-height:220px;object-fit:cover;border-radius:12px"><h3>${p.name}</h3><p class="muted">${p.description||""}</p>`}
+window.requestSelectedPackage=()=>{if(selectedPackage)selectPackage(selectedPackage.id);closeModal();showPage("request")};
 
-  async function uploadFile(file, pathPrefix){
-    const fileRef = ref(storage, `${pathPrefix}/${Date.now()}_${file.name}`);
-    await uploadBytes(fileRef, file);
-    return await getDownloadURL(fileRef);
-  }
+async function loadGallery(){const s=await getDoc(doc(db,"config","gallery")),g=document.getElementById("galleryGrid"),imgs=s.exists()?s.data().images||[]:[];g.innerHTML=imgs.length?imgs.map(u=>`<img src="${u}" alt="Candy Bar Vogtland">`).join(""):"<p class='muted'>Noch keine Bilder vorhanden.</p>"}
+async function loadHero(){const s=await getDoc(doc(db,"config","site"));const u=s.exists()?s.data().heroImage:"";if(u)document.getElementById("heroImage").innerHTML=`<img src="${u}" alt="Candy Bar Vogtland">`}
 
-  // ---------- Bookings ----------
-  async function loadBookings(){
-    const snap = await getDocs(collection(db,"bookings"));
-    const body = document.getElementById("bookingsBody");
-    body.innerHTML = "";
-    let total = 0, confirmed = 0, revenue = 0;
-    const rows = [];
-    snap.forEach(d=>{ rows.push({id:d.id, ...d.data()}); });
-    rows.sort((a,b)=> (a.eventDate||"").localeCompare(b.eventDate||""));
+function addBlock(date){const d=new Date(date+"T00:00:00");for(let i=-1;i<=1;i++){const x=new Date(d);x.setDate(x.getDate()+i);takenDates.push(x.toISOString().slice(0,10))}}
+async function loadTakenDates(){const s=await getDocs(collection(db,"bookings"));takenDates=[];s.forEach(d=>{const b=d.data();if(b.status!=="abgelehnt"&&b.eventDate)addBlock(b.eventDate)});takenDates=[...new Set(takenDates)];renderCalendar()}
+function renderCalendar(){const c=document.getElementById("calendar"),y=calDate.getFullYear(),m=calDate.getMonth(),first=new Date(y,m,1),offset=(first.getDay()+6)%7,days=new Date(y,m+1,0).getDate(),today=new Date();today.setHours(0,0,0,0);const mn=["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];let h=`<div class="calhead"><button onclick="moveMonth(-1)">‹</button><strong>${mn[m]} ${y}</strong><button onclick="moveMonth(1)">›</button></div><div class="calgrid">${["Mo","Di","Mi","Do","Fr","Sa","So"].map(x=>`<span>${x}</span>`).join("")}`;for(let i=0;i<offset;i++)h+="<i></i>";for(let d=1;d<=days;d++){const x=new Date(y,m,d),iso=x.toISOString().slice(0,10),taken=takenDates.includes(iso),past=x<today,sel=iso===selectedDate;h+=`<button class="${taken?"taken ":""}${sel?"selected":""}" ${taken||past?"disabled":""} onclick="pickDate('${iso}')">${d}</button>`}c.innerHTML=h+"</div>"}
+window.moveMonth=(d)=>{calDate.setMonth(calDate.getMonth()+d);renderCalendar()};window.pickDate=(iso)=>{selectedDate=iso;document.getElementById("calSelected").textContent="Ausgewählt: "+iso;renderCalendar()};
 
-    rows.forEach(b=>{
-      total++;
-      if(b.status === "bestätigt"){
-        confirmed++;
-        revenue += packagePrices[b.package] || 0;
-      }
-      body.innerHTML += `
-        <tr>
-          <td>${b.eventDate || ""}</td>
-          <td>${b.name || ""}</td>
-          <td>${b.package || ""}</td>
-          <td>${b.email || ""}<br>${b.phone || ""}</td>
-          <td>${b.message || ""}</td>
-          <td>
-            <select class="statusSelect" onchange="updateStatus('${b.id}', this.value)">
-              <option value="neu" ${b.status==="neu"?"selected":""}>Neu</option>
-              <option value="bestätigt" ${b.status==="bestätigt"?"selected":""}>Bestätigt</option>
-              <option value="abgelehnt" ${b.status==="abgelehnt"?"selected":""}>Abgelehnt</option>
-            </select>
-          </td>
-        </tr>`;
-    });
+window.openAuth=()=>document.getElementById("authModal").classList.add("show");window.closeAuth=()=>document.getElementById("authModal").classList.remove("show");
+window.toggleAuth=()=>{authMode=authMode==="login"?"register":"login";document.getElementById("authTitle").textContent=authMode==="login"?"Anmelden":"Registrieren";document.querySelector("#authModal .btn").textContent=authMode==="login"?"Anmelden":"Konto erstellen";document.getElementById("authSwitch").textContent=authMode==="login"?"Noch kein Konto? Registrieren":"Schon ein Konto? Anmelden"};
+window.submitAuth=async()=>{try{const e=document.getElementById("authEmail").value,p=document.getElementById("authPassword").value;authMode==="login"?await signInWithEmailAndPassword(auth,e,p):await createUserWithEmailAndPassword(auth,e,p);closeAuth();if(pendingSubmit){pendingSubmit=false;document.getElementById("bookingForm").requestSubmit()}}catch(e){document.getElementById("authError").textContent="Anmeldung fehlgeschlagen."}};
+onAuthStateChanged(auth,u=>{document.getElementById("authNav").textContent=u?"Abmelden":"Anmelden";document.getElementById("authNav").onclick=u?()=>signOut(auth):openAuth;document.getElementById("myNav").style.display=u?"inline":"none";if(u)document.getElementById("f_email").value=u.email});
 
-    document.getElementById("statTotal").textContent = total;
-    document.getElementById("statConfirmed").textContent = confirmed;
-    document.getElementById("statRevenue").textContent = revenue.toFixed(2) + " €";
-  }
+async function loadBookings(){if(!auth.currentUser)return;const s=await getDocs(query(collection(db,"bookings"),where("email","==",auth.currentUser.email))),l=document.getElementById("myBookingsList");l.innerHTML="";if(s.empty){l.innerHTML="<p class='muted'>Noch keine Buchungen.</p>";return}s.forEach(d=>{const b=d.data();l.innerHTML+=`<div class="booking"><strong>${b.package||""}</strong><br>${b.eventDate||""}<br><span class="muted">${b.location||""}</span><br><span class="status ${b.status||"neu"}">${b.status||"neu"}</span></div>`})}
 
-  window.updateStatus = async function(id, status){
-    await updateDoc(doc(db,"bookings",id), {status});
-    loadBookings();
-  }
+document.getElementById("bookingForm").addEventListener("submit",async e=>{e.preventDefault();if(!selectedDate){document.getElementById("calSelected").textContent="Bitte zuerst ein Datum auswählen.";return}if(!auth.currentUser){pendingSubmit=true;openAuth();return}const status=document.getElementById("formStatus");status.textContent="Wird gesendet…";try{await addDoc(collection(db,"bookings"),{uid:auth.currentUser.uid,name:f_name.value,email:f_email.value,phone:f_phone.value,eventDate:selectedDate,package:f_package.value,location:f_location.value,message:f_message.value,status:"neu",createdAt:serverTimestamp()});status.textContent="Danke! Deine Anfrage wurde gesendet.";selectedDate=null;await loadTakenDates();await loadBookings()}catch(err){status.textContent="Fehler beim Senden."}});
 
-  // ---------- Packages ----------
-  async function loadPackages(){
-    const snap = await getDocs(collection(db,"packages"));
-    const list = document.getElementById("packagesList");
-    list.innerHTML = "";
-    packagePrices = {};
-    snap.forEach(d=>{
-      const p = d.data();
-      const numeric = parseFloat((p.price||"").toString().replace(/[^\d.,]/g,"").replace(",",".")) || 0;
-      packagePrices[p.name] = numeric;
-      const images = p.images || [];
-      list.innerHTML += `
-        <div class="card" data-id="${d.id}">
-          <div class="row">
-            <input type="text" value="${p.name||""}" placeholder="Name" class="pName">
-            <input type="text" value="${p.price||""}" placeholder="Preis, z.B. 99 €" class="pPrice">
-          </div>
-          <div class="row">
-            <input type="text" value="${p.description||""}" placeholder="Beschreibung" class="pDesc" style="flex:3">
-          </div>
-          <div class="row">
-            <button onclick="savePackage('${d.id}', this)">Speichern</button>
-            <button class="danger" onclick="deletePackage('${d.id}')">Löschen</button>
-            <label class="fileBtn">
-              📷 Bild hinzufügen
-              <input type="file" accept="image/*" onchange="handlePackageUpload(event,'${d.id}')">
-            </label>
-          </div>
-          <div class="imgList" id="pkgImgs-${d.id}">
-            ${images.map((url,i)=>`
-              <div>
-                <img src="${url}">
-                <button onclick="removePackageImage('${d.id}', ${i})">×</button>
-              </div>`).join("")}
-          </div>
-        </div>`;
-    });
-  }
-
-  window.savePackage = async function(id, btn){
-    const card = btn.closest(".card");
-    const name = card.querySelector(".pName").value;
-    const price = card.querySelector(".pPrice").value;
-    const description = card.querySelector(".pDesc").value;
-    await updateDoc(doc(db,"packages",id), {name, price, description});
-    document.getElementById("pkgMsg").textContent = "Gespeichert ✓";
-    setTimeout(()=>document.getElementById("pkgMsg").textContent = "", 1500);
-    loadPackages().then(loadBookings);
-  }
-
-  window.deletePackage = async function(id){
-    if(!confirm("Paket wirklich löschen?")) return;
-    await deleteDoc(doc(db,"packages",id));
-    loadPackages().then(loadBookings);
-  }
-
-  window.addPackage = async function(){
-    await addDoc(collection(db,"packages"), {name:"Neues Paket", price:"0 €", description:"", images:[]});
-    loadPackages();
-  }
-
-  window.handlePackageUpload = async function(event, packageId){
-    const file = event.target.files[0];
-    if(!file) return;
-    event.target.disabled = true;
-    try{
-      const url = await uploadFile(file, `packages/${packageId}`);
-      const ref_ = doc(db,"packages",packageId);
-      const snap = await getDoc(ref_);
-      const images = (snap.data().images) || [];
-      images.push(url);
-      await updateDoc(ref_, {images});
-      loadPackages().then(loadBookings);
-    }catch(e){
-      alert("Upload fehlgeschlagen: " + e.message);
-    }
-    event.target.disabled = false;
-  }
-
-  window.removePackageImage = async function(packageId, index){
-    const ref_ = doc(db,"packages",packageId);
-    const snap = await getDoc(ref_);
-    const images = (snap.data().images) || [];
-    images.splice(index,1);
-    await updateDoc(ref_, {images});
-    loadPackages().then(loadBookings);
-  }
-
-  // ---------- Gallery ----------
-  async function loadGallery(){
-    const ref_ = doc(db,"config","gallery");
-    const snap = await getDoc(ref_);
-    const images = snap.exists() ? (snap.data().images || []) : [];
-    const list = document.getElementById("imgList");
-    list.innerHTML = "";
-    images.forEach((url, i)=>{
-      list.innerHTML += `
-        <div>
-          <img src="${url}">
-          <button onclick="removeImage(${i})">×</button>
-        </div>`;
-    });
-  }
-
-  window.handleGalleryUpload = async function(event){
-    const file = event.target.files[0];
-    if(!file) return;
-    const msg = document.getElementById("galleryUploadMsg");
-    msg.textContent = "Lädt hoch…";
-    try{
-      const url = await uploadFile(file, "gallery");
-      const ref_ = doc(db,"config","gallery");
-      const snap = await getDoc(ref_);
-      const images = snap.exists() ? (snap.data().images || []) : [];
-      images.push(url);
-      await setDoc(ref_, {images});
-      msg.textContent = "Hochgeladen ✓";
-      setTimeout(()=>msg.textContent="",1500);
-      loadGallery();
-    }catch(e){
-      msg.textContent = "Fehler beim Hochladen";
-      alert(e.message);
-    }
-  }
-
-  window.removeImage = async function(index){
-    const ref_ = doc(db,"config","gallery");
-    const snap = await getDoc(ref_);
-    const images = snap.exists() ? (snap.data().images || []) : [];
-    images.splice(index,1);
-    await setDoc(ref_, {images});
-    loadGallery();
-  }
+loadPackages();loadGallery();loadHero();loadTakenDates();
 </script>
 </body>
 </html>
