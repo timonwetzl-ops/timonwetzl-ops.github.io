@@ -2,516 +2,162 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Candybar Vogtland — Candybar mieten</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Candy Bar Vogtland</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --bg:#1b1023; --bg-card:#26152f; --bg-card-2:#2f1a3a;
-    --pink:#ff3d68; --yellow:#ffd23f; --mint:#4ecdc4;
-    --cream:#f5efe6; --cream-dim:#c9bfd6;
-  }
-  *{box-sizing:border-box;}
-  body{margin:0;background:var(--bg);color:var(--cream);font-family:'Work Sans',sans-serif;line-height:1.5;}
-  h1,h2,h3{font-family:'Baloo 2',sans-serif;margin:0;}
-  a{color:inherit;}
-  .stripe{height:10px;background:repeating-linear-gradient(135deg,var(--pink) 0 14px,var(--yellow) 14px 28px);}
-  nav{display:flex;justify-content:space-between;align-items:center;padding:22px 6vw;flex-wrap:wrap;gap:12px;}
-  nav .logo{font-family:'Baloo 2';font-weight:800;font-size:1.4rem;}
-  nav .logo span{color:var(--pink);}
-  nav .links a{color:var(--cream-dim);text-decoration:none;margin-left:26px;font-weight:500;font-size:.95rem;cursor:pointer;}
-  nav .links a:hover{color:var(--yellow);}
-  header.hero{padding:8vh 6vw 10vh;text-align:center;}
-  header.hero h1{font-size:clamp(2.4rem,6vw,4.2rem);font-weight:800;letter-spacing:-1px;}
-  header.hero h1 em{font-style:normal;color:var(--pink);}
-  header.hero p{max-width:580px;margin:22px auto 0;color:var(--cream-dim);font-size:1.1rem;}
-  .btn{display:inline-block;margin-top:34px;padding:16px 34px;border-radius:100px;background:var(--pink);color:#1b1023;font-weight:700;text-decoration:none;font-size:1.05rem;border:none;cursor:pointer;transition:transform .15s ease;}
-  .btn:hover{transform:translateY(-2px);}
-  .btn.outline{background:transparent;border:2px solid var(--mint);color:var(--mint);margin-left:14px;}
-  section{padding:8vh 6vw;}
-  .eyebrow{color:var(--mint);font-weight:600;letter-spacing:2px;text-transform:uppercase;font-size:.8rem;}
-  section h2{font-size:clamp(1.8rem,4vw,2.6rem);margin-top:10px;margin-bottom:34px;}
-
-  .gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;}
-  .gallery img{width:100%;height:220px;object-fit:cover;border-radius:14px;display:block;background:var(--bg-card);}
-
-  .packages{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:22px;}
-  .pkg{background:var(--bg-card);border-radius:20px;overflow:hidden;border:1px solid #ffffff14;cursor:pointer;transition:transform .15s ease;}
-  .pkg:hover{transform:translateY(-4px);}
-  .pkg img{width:100%;height:170px;object-fit:cover;display:block;}
-  .pkg .body{padding:24px;}
-  .pkg h3{font-size:1.3rem;margin-bottom:6px;}
-  .pkg .price{font-family:'JetBrains Mono',monospace;color:var(--yellow);font-size:1.5rem;font-weight:500;margin:8px 0;}
-  .pkg p{color:var(--cream-dim);font-size:.9rem;}
-
-  .modal-overlay{display:none;position:fixed;inset:0;background:#0a0410cc;z-index:100;align-items:center;justify-content:center;padding:20px;}
-  .modal-overlay.show{display:flex;}
-  .modal{background:var(--bg-card);border-radius:20px;max-width:560px;width:100%;padding:30px;position:relative;max-height:88vh;overflow-y:auto;}
-  .modal .closeBtn{position:absolute;top:16px;right:16px;background:var(--pink);color:#1b1023;border:none;border-radius:50%;width:32px;height:32px;font-weight:700;cursor:pointer;font-size:1rem;}
-  .modal-img-wrap{position:relative;border-radius:14px;overflow:hidden;height:260px;background:var(--bg-card-2);margin-bottom:18px;}
-  .modal-img-wrap img{width:100%;height:100%;object-fit:cover;}
-  .modal-img-wrap .navBtn{position:absolute;top:50%;transform:translateY(-50%);background:#1b1023aa;color:var(--cream);border:none;width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:1.1rem;}
-  .modal-img-wrap .navBtn.left{left:10px;} .modal-img-wrap .navBtn.right{right:10px;}
-  .modal .price{font-family:'JetBrains Mono',monospace;color:var(--yellow);font-size:1.6rem;margin:10px 0;}
-
-  .authField{margin-bottom:14px;}
-  .authField label{display:block;font-size:.85rem;color:var(--cream-dim);margin-bottom:6px;}
-  .authField input{width:100%;padding:12px 14px;border-radius:10px;border:1px solid #ffffff22;background:var(--bg-card-2);color:var(--cream);font-family:inherit;}
-  .authSwitch{font-size:.85rem;color:var(--cream-dim);margin-top:14px;text-align:center;}
-  .authSwitch a{color:var(--mint);cursor:pointer;text-decoration:underline;}
-  #authError{color:var(--pink);font-size:.85rem;margin-top:8px;min-height:1.2em;}
-
-  form{max-width:640px;background:var(--bg-card);padding:36px;border-radius:20px;border:1px solid #ffffff14;}
-  form label{display:block;font-size:.85rem;color:var(--cream-dim);margin:16px 0 6px;}
-  form input,form select,form textarea{width:100%;padding:12px 14px;border-radius:10px;border:1px solid #ffffff22;background:var(--bg-card-2);color:var(--cream);font-family:inherit;font-size:.95rem;}
-  form textarea{resize:vertical;min-height:90px;}
-  form .btn{width:100%;text-align:center;}
-  #formStatus{margin-top:14px;font-size:.9rem;}
-
-  .cal{background:var(--bg-card-2);border-radius:14px;padding:16px;margin-top:4px;}
-  .cal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
-  .cal-head button{background:none;border:1px solid var(--cream-dim);color:var(--cream);width:30px;height:30px;border-radius:8px;cursor:pointer;}
-  .cal-head .label{font-family:'Baloo 2';font-weight:700;}
-  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;text-align:center;}
-  .cal-grid .dow{color:var(--cream-dim);font-size:.7rem;padding:4px 0;}
-  .cal-grid button{background:var(--bg-card);border:none;color:var(--cream);padding:8px 0;border-radius:8px;cursor:pointer;font-size:.85rem;}
-  .cal-grid button:disabled{opacity:.25;cursor:not-allowed;}
-  .cal-grid button.taken{background:var(--pink);opacity:.5;cursor:not-allowed;}
-  .cal-grid button.selected{background:var(--mint);color:#1b1023;font-weight:700;}
-  .cal-selected{margin-top:10px;font-size:.85rem;color:var(--yellow);}
-
-  #myBookingsSection{display:none;}
-  .bookingRow{background:var(--bg-card);border-radius:14px;padding:18px 22px;margin-bottom:12px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;}
-  .bookingRow .status{padding:4px 12px;border-radius:100px;font-size:.75rem;font-weight:600;height:fit-content;}
-  .status.neu{background:var(--yellow);color:#1b1023;}
-  .status.bestätigt{background:var(--mint);color:#1b1023;}
-  .status.abgelehnt{background:var(--pink);color:#1b1023;}
-
-  .footer-band{background:var(--yellow);color:#1b1023;text-align:center;padding:50px 6vw;}
-  .footer-band h2{font-size:2rem;}
-  .footer-band p{margin-top:8px;font-weight:500;}
-  footer{padding:30px 6vw;text-align:center;color:var(--cream-dim);font-size:.85rem;}
-  footer a{color:var(--mint);}
+:root{--bg:#1b1023;--card:#26152f;--card2:#2f1a3a;--pink:#ff3d68;--yellow:#ffd23f;--mint:#4ecdc4;--cream:#f5efe6;--dim:#c9bfd6}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--cream);font-family:"Work Sans",sans-serif;line-height:1.5}h1,h2,h3{font-family:"Baloo 2",sans-serif;margin:0}button,a{font:inherit}.stripe{height:10px;background:repeating-linear-gradient(135deg,var(--pink) 0 14px,var(--yellow) 14px 28px)}
+nav{position:sticky;top:0;z-index:50;background:#1b1023ee;backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:space-between;padding:16px 6vw;border-bottom:1px solid #ffffff12}
+.logo{font:800 1.35rem "Baloo 2";text-decoration:none}.logo span{color:var(--pink)}.links{display:flex;gap:22px;align-items:center;flex-wrap:wrap}.links a{color:var(--dim);text-decoration:none;cursor:pointer}.links a:hover{color:var(--yellow)}
+main{min-height:70vh}.page{display:none;padding:7vh 6vw}.page.active{display:block}.hero{display:block;text-align:center;padding:10vh 6vw 12vh}.hero h1{font-size:clamp(2.6rem,7vw,4.8rem);line-height:1.05}.hero em{color:var(--pink);font-style:normal}.hero p{max-width:700px;margin:20px auto;color:var(--dim);font-size:1.08rem}.btn{display:inline-block;padding:14px 25px;border:0;border-radius:999px;background:var(--pink);color:#1b1023;font-weight:700;cursor:pointer;text-decoration:none;margin:8px 6px}.btn.alt{background:transparent;color:var(--mint);border:2px solid var(--mint)}
+.eyebrow{color:var(--mint);font-size:.8rem;text-transform:uppercase;letter-spacing:2px;font-weight:700}h2{font-size:clamp(2rem,4vw,2.8rem);margin:8px 0 30px}.heroImg,.legal,.booking,.formbox{background:var(--card);border:1px solid #ffffff14;border-radius:20px}.heroImg{max-width:900px;height:360px;margin:35px auto 0;overflow:hidden}.heroImg img{width:100%;height:100%;object-fit:cover}.placeholder{display:grid;place-items:center;height:100%;color:var(--dim);font-size:1.2rem}
+.packages,.gallery,.bookings{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px}.pkg{background:var(--card);border:1px solid #ffffff14;border-radius:20px;overflow:hidden;cursor:pointer;transition:.15s}.pkg:hover{transform:translateY(-4px)}.pkg img{width:100%;height:190px;object-fit:cover}.pkg .body{padding:22px}.price{color:var(--yellow);font-weight:700;font-size:1.35rem}.muted{color:var(--dim)}.gallery img{width:100%;height:230px;object-fit:cover;border-radius:16px;background:var(--card)}
+.formbox{max-width:700px;padding:30px}.field{margin:15px 0}.field label{display:block;color:var(--dim);font-size:.85rem;margin-bottom:6px}.field input,.field select,.field textarea{width:100%;padding:12px 14px;border-radius:10px;border:1px solid #ffffff22;background:var(--card2);color:var(--cream)}textarea{min-height:100px;resize:vertical}
+.cal{background:var(--card2);padding:15px;border-radius:14px}.calhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.calhead button{background:transparent;color:var(--cream);border:1px solid #ffffff44;border-radius:8px;padding:5px 12px;cursor:pointer}.calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}.calgrid span{padding:6px;text-align:center;color:var(--dim);font-size:.75rem}.calgrid button{border:0;border-radius:8px;padding:9px 2px;background:var(--card);color:var(--cream);cursor:pointer}.calgrid button.taken{background:var(--pink);opacity:.75;cursor:not-allowed}.calgrid button.selected{background:var(--mint);color:#1b1023;font-weight:700}.calgrid button:disabled{opacity:.25}.selectedDate{margin-top:8px;color:var(--yellow)}
+.booking{padding:18px}.status{display:inline-block;padding:4px 10px;border-radius:99px;font-size:.75rem;font-weight:700}.status.neu{background:var(--yellow);color:#1b1023}.status.bestätigt{background:var(--mint);color:#1b1023}.status.abgelehnt{background:var(--pink);color:#1b1023}
+footer{background:#120a18;color:var(--dim);padding:40px 6vw;margin-top:5vh;text-align:center}footer a{color:var(--mint);margin:0 8px;cursor:pointer}
+.modal{position:fixed;inset:0;background:#08030dcc;display:none;z-index:100;align-items:center;justify-content:center;padding:20px}.modal.show{display:flex}.modalbox{background:var(--card);border-radius:20px;max-width:650px;width:100%;max-height:90vh;overflow:auto;padding:28px;position:relative}.close{position:absolute;right:14px;top:14px;border:0;border-radius:50%;background:var(--pink);width:34px;height:34px;cursor:pointer}.modalbox img{width:100%;height:300px;object-fit:cover;border-radius:14px}.modalbox .btn{width:100%}
+@media(max-width:700px){nav{align-items:flex-start}.links{gap:12px;font-size:.85rem}.heroImg{height:230px}.page{padding:6vh 5vw}.modalbox img{height:220px}}
 </style>
 </head>
 <body>
-
 <div class="stripe"></div>
 <nav>
-  <div class="logo">Candybar <span>Vogtland</span></div>
+  <a class="logo" onclick="showPage('home')">Candy Bar <span>Vogtland</span></a>
   <div class="links">
-    <a href="#pakete">Pakete</a>
-    <a href="#galerie">Galerie</a>
-    <a href="#buchen">Anfrage</a>
-    <a id="navAuth" onclick="openAuthModal()">Anmelden</a>
-    <a id="navMyBookings" style="display:none" onclick="scrollToMyBookings()">Meine Buchungen</a>
+    <a onclick="showPage('packages')">Pakete</a>
+    <a onclick="showPage('gallery')">Galerie</a>
+    <a onclick="showPage('request')">Anfragen</a>
+    <a id="myNav" onclick="showPage('bookings')" style="display:none">Meine Buchungen</a>
+    <a id="authNav" onclick="openAuth()">Anmelden</a>
   </div>
 </nav>
 
-<header class="hero">
-  <div class="eyebrow">Candybar für dein Event</div>
-  <h1>Süße Momente,<br><em>bereit zum Abholen.</em></h1>
-  <p>Ich stelle dir eine liebevoll zusammengestellte Candybar für deine Feier zusammen — Hochzeit, Geburtstag, Firmenevent. Du holst sie bei uns ab und baust sie selbst vor Ort auf. Die genauen Abhol-Details bekommst du nach deiner Anfrage per E-Mail.</p>
-  <a class="btn" href="#buchen">Jetzt anfragen</a>
-  <a class="btn outline" href="#pakete">Pakete ansehen</a>
-</header>
+<main>
+<section id="home" class="page active hero">
+  <div class="eyebrow">Candy Bar für dein Event</div>
+  <h1>Süße Momente,<br><em>bereit für deine Feier.</em></h1>
+  <p>Eine liebevoll zusammengestellte Candy Bar für Hochzeit, Geburtstag, Firmenevent und andere besondere Tage.</p>
+  <a class="btn" onclick="showPage('request')">Jetzt anfragen</a>
+  <a class="btn alt" onclick="showPage('packages')">Pakete ansehen</a>
+  <div class="heroImg" id="heroImage"><div class="placeholder">Dein Candy-Bar-Hauptbild</div></div>
+</section>
 
-<section id="pakete">
-  <div class="eyebrow">Pakete</div>
-  <h2>Wähl deine Größe</h2>
-  <div class="packages" id="packagesGrid">
-    <p style="color:var(--cream-dim)">Pakete werden geladen…</p>
+<section id="packages" class="page">
+  <div class="eyebrow">Pakete</div><h2>Wähl dein Paket</h2>
+  <div class="packages" id="packagesGrid">Lädt…</div>
+</section>
+
+<section id="gallery" class="page">
+  <div class="eyebrow">Galerie</div><h2>So sieht's aus</h2>
+  <div class="gallery" id="galleryGrid">Lädt…</div>
+</section>
+
+<section id="request" class="page">
+  <div class="eyebrow">Anfrage</div><h2>Termin & Anfrage</h2>
+  <div class="formbox">
+    <div id="selectedPackageBox" class="booking" style="display:none;margin-bottom:18px"></div>
+    <form id="bookingForm">
+      <div class="field"><label>Name</label><input id="f_name" required></div>
+      <div class="field"><label>E-Mail</label><input id="f_email" type="email" required></div>
+      <div class="field"><label>Telefon</label><input id="f_phone" type="tel"></div>
+      <div class="field"><label>Datum</label><div class="cal" id="calendar"></div><div class="selectedDate" id="calSelected">Noch kein Datum ausgewählt.</div></div>
+      <div class="field"><label>Paket</label><select id="f_package"></select></div>
+      <div class="field"><label>Veranstaltungsort</label><input id="f_location"></div>
+      <div class="field"><label>Nachricht</label><textarea id="f_message"></textarea></div>
+      <button class="btn" type="submit">Anfrage senden</button>
+      <div id="formStatus" class="muted"></div>
+    </form>
   </div>
 </section>
 
-<section id="galerie">
-  <div class="eyebrow">Galerie</div>
-  <h2>So sieht's live aus</h2>
-  <div class="gallery" id="galleryGrid">
-    <p style="color:var(--cream-dim)">Bilder werden geladen…</p>
-  </div>
+<section id="bookings" class="page">
+  <div class="eyebrow">Dein Konto</div><h2>Meine Buchungen</h2>
+  <div id="myBookingsList" class="bookings"></div>
 </section>
 
-<section id="buchen">
-  <div class="eyebrow">Anfrage</div>
-  <h2>Termin & Anfrage</h2>
-  <form id="bookingForm">
-    <label>Name</label>
-    <input type="text" id="f_name" required>
-
-    <label>E-Mail</label>
-    <input type="email" id="f_email" required>
-
-    <label>Telefon (optional)</label>
-    <input type="tel" id="f_phone">
-
-    <label>Datum der Veranstaltung</label>
-    <div class="cal" id="calendar"></div>
-    <div class="cal-selected" id="calSelected">Noch kein Datum ausgewählt.</div>
-
-    <label>Gewünschtes Paket</label>
-    <select id="f_package"></select>
-
-    <label>Nachricht (optional)</label>
-    <textarea id="f_message" placeholder="Anzahl Gäste, besondere Wünsche…"></textarea>
-
-    <button class="btn" type="submit">Anfrage senden</button>
-    <div id="formStatus"></div>
-  </form>
+<section id="legal" class="page">
+  <div class="eyebrow">Informationen</div><h2 id="legalTitle">Impressum</h2>
+  <div class="legal" style="padding:28px"><div id="legalText" class="muted">Lädt…</div></div>
 </section>
+</main>
 
-<section id="myBookingsSection">
-  <div class="eyebrow">Dein Konto</div>
-  <h2>Meine Buchungen</h2>
-  <div id="myBookingsList"></div>
-</section>
-
-<div class="footer-band">
-  <h2>Candybar Hochglanz</h2>
-  <p>Süßes für jeden Anlass — Vogtland und Umgebung.</p>
-</div>
 <footer>
-  Candybar Vogtland · <a href="mailto:hallo@example.com">hallo@example.com</a>
+  <strong>Candy Bar Vogtland</strong><br><br>
+  <a onclick="showLegal('impressum')">Impressum</a>
+  <a onclick="showLegal('agb')">AGB</a>
+  <a onclick="showLegal('datenschutz')">Datenschutz</a>
 </footer>
 
-<div class="modal-overlay" id="pkgModalOverlay">
-  <div class="modal">
-    <button class="closeBtn" onclick="closePkgModal()">×</button>
-    <div class="modal-img-wrap">
-      <button class="navBtn left" onclick="pkgModalImg(-1)">‹</button>
-      <img id="pkgModalImg" src="">
-      <button class="navBtn right" onclick="pkgModalImg(1)">›</button>
-    </div>
-    <h3 id="pkgModalName"></h3>
-    <div class="price" id="pkgModalPrice"></div>
-    <p id="pkgModalDesc" style="color:var(--cream-dim)"></p>
+<div class="modal" id="pkgModal">
+  <div class="modalbox">
+    <button class="close" onclick="closeModal()">×</button>
+    <img id="modalImg" src="">
+    <h2 id="modalName" style="margin-top:18px"></h2>
+    <div class="price" id="modalPrice"></div>
+    <p id="modalDesc" class="muted"></p>
+    <button class="btn" onclick="requestSelectedPackage()">Jetzt anfragen</button>
   </div>
 </div>
 
-<div class="modal-overlay" id="authModalOverlay">
-  <div class="modal" style="max-width:400px">
-    <button class="closeBtn" onclick="closeAuthModal()">×</button>
-    <h3 id="authTitle">Anmelden</h3>
-    <div style="margin-top:20px">
-      <div class="authField">
-        <label>E-Mail</label>
-        <input type="email" id="auth_email">
-      </div>
-      <div class="authField">
-        <label>Passwort</label>
-        <input type="password" id="auth_password">
-      </div>
-      <button class="btn" style="width:100%" onclick="submitAuth()" id="authSubmitBtn">Anmelden</button>
-      <div id="authError"></div>
-      <div class="authSwitch" id="authSwitchText">
-        Noch kein Konto? <a onclick="toggleAuthMode()">Jetzt registrieren</a>
-      </div>
-    </div>
+<div class="modal" id="authModal">
+  <div class="modalbox" style="max-width:420px">
+    <button class="close" onclick="closeAuth()">×</button>
+    <h2 id="authTitle">Anmelden</h2>
+    <div class="field"><label>E-Mail</label><input id="authEmail" type="email"></div>
+    <div class="field"><label>Passwort</label><input id="authPassword" type="password"></div>
+    <button class="btn" style="width:100%" onclick="submitAuth()">Anmelden</button>
+    <p id="authSwitch" class="muted" style="text-align:center;cursor:pointer" onclick="toggleAuth()">Noch kein Konto? Registrieren</p>
+    <div id="authError" style="color:var(--pink)"></div>
   </div>
 </div>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import {
-    getFirestore, collection, getDocs, doc, getDoc, setDoc,
-    addDoc, serverTimestamp, query, where
-  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-  import {
-    getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
-    onAuthStateChanged, signOut
-  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { firebaseConfig } from "./firebase-config.js";
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {getFirestore,collection,getDocs,doc,getDoc,addDoc,serverTimestamp,query,where} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,onAuthStateChanged,signOut} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {firebaseConfig} from "./firebase-config.js";
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-  const auth = getAuth(app);
+const app=initializeApp(firebaseConfig),db=getFirestore(app),auth=getAuth(app);
+let packages=[],selectedPackage=null,selectedDate=null,takenDates=[],calDate=new Date(),authMode="login",pendingSubmit=false;
 
-  let currentUser = null;
-  let allPackages = [];
-  let takenDates = [];
-  let selectedDate = null;
+const ph=(name)=>"data:image/svg+xml;charset=UTF-8,"+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500"><rect width="100%" height="100%" fill="#2f1a3a"/><text x="50%" y="50%" fill="#c9bfd6" font-family="sans-serif" font-size="32" text-anchor="middle">${name}</text></svg>`);
 
-  function placeholderImg(name, color){
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300">
-      <rect width="400" height="300" fill="${color}"/>
-      <text x="50%" y="50%" font-family="sans-serif" font-size="26" fill="#1b1023"
-        text-anchor="middle" dominant-baseline="middle" font-weight="700">${name}</text>
-    </svg>`;
-    return "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svg)));
-  }
+window.showPage=(id)=>{document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));document.getElementById(id).classList.add("active");window.scrollTo({top:0,behavior:"smooth"});if(id==="bookings")loadBookings();};
+window.showLegal=async(type)=>{const names={impressum:"Impressum",agb:"AGB",datenschutz:"Datenschutz"};document.getElementById("legalTitle").textContent=names[type];const s=await getDoc(doc(db,"config","legal"));const text=s.exists()?(s.data()[type]||"Noch kein Inhalt hinterlegt."):"Noch kein Inhalt hinterlegt.";document.getElementById("legalText").innerHTML=text.replace(/\n/g,"<br>");showPage("legal")};
 
-  async function ensureDefaultPackages(){
-    const snap = await getDocs(collection(db,"packages"));
-    if(!snap.empty) return;
-    const defaults = [
-      {id:"basic", name:"Basic", price:"89 €",
-        description:"Candybar-Gestell zum Selbstbefüllen – für alle, die selbst dekorieren und befüllen möchten.",
-        images:[placeholderImg("Basic","#ff3d68")]},
-      {id:"komfort", name:"Komfort", price:"149 €",
-        description:"Gestell inklusive Gläsern und passender Deko – du bringst nur noch deine eigenen Süßigkeiten mit.",
-        images:[placeholderImg("Komfort","#ffd23f")]},
-      {id:"rundum", name:"Rundum-Sorglos", price:"229 €",
-        description:"Alles komplett – Gestell, Gläser, Deko und bereits befüllt mit Süßigkeiten.",
-        images:[placeholderImg("Rundum-Sorglos","#4ecdc4")]}
-    ];
-    for(const p of defaults){
-      await setDoc(doc(db,"packages",p.id), {name:p.name, price:p.price, description:p.description, images:p.images});
-    }
-  }
+async function loadPackages(){
+ const s=await getDocs(collection(db,"packages")),seen=new Set();packages=[];
+ s.forEach(d=>{const p={id:d.id,...d.data()};const key=(p.name||"").trim().toLowerCase();if(!seen.has(key)&&["basic","comfort","rundum sorglos"].includes(key)){seen.add(key);packages.push(p)}});
+ const grid=document.getElementById("packagesGrid"),sel=document.getElementById("f_package");grid.innerHTML="";sel.innerHTML="";
+ packages.forEach(p=>{const img=p.images?.[0]||ph(p.name);grid.innerHTML+=`<article class="pkg" onclick="openPackage('${p.id}')"><img src="${img}" alt="${p.name}"><div class="body"><h3>${p.name}</h3><div class="price">${p.price||""}</div><p class="muted">${p.description||""}</p></div></article>`;sel.innerHTML+=`<option>${p.name}</option>`});
+ if(selectedPackage) selectPackage(selectedPackage.id);
+}
+window.openPackage=(id)=>{selectedPackage=packages.find(p=>p.id===id);document.getElementById("modalName").textContent=selectedPackage.name;document.getElementById("modalPrice").textContent=selectedPackage.price||"";document.getElementById("modalDesc").textContent=selectedPackage.description||"";document.getElementById("modalImg").src=selectedPackage.images?.[0]||ph(selectedPackage.name);document.getElementById("pkgModal").classList.add("show")};
+window.closeModal=()=>document.getElementById("pkgModal").classList.remove("show");
+function selectPackage(id){const p=packages.find(x=>x.id===id);if(!p)return;selectedPackage=p;document.getElementById("f_package").value=p.name;document.getElementById("selectedPackageBox").style.display="block";document.getElementById("selectedPackageBox").innerHTML=`<img src="${p.images?.[0]||ph(p.name)}" style="width:100%;max-height:220px;object-fit:cover;border-radius:12px"><h3>${p.name}</h3><p class="muted">${p.description||""}</p>`}
+window.requestSelectedPackage=()=>{if(selectedPackage)selectPackage(selectedPackage.id);closeModal();showPage("request")};
 
-  async function loadPackages(){
-    await ensureDefaultPackages();
-    const snap = await getDocs(collection(db,"packages"));
-    const grid = document.getElementById("packagesGrid");
-    const select = document.getElementById("f_package");
-    grid.innerHTML = ""; select.innerHTML = "";
-    allPackages = [];
-    snap.forEach(d=>{
-      const p = {id:d.id, ...d.data()};
-      allPackages.push(p);
-      const img = (p.images && p.images[0]) || placeholderImg(p.name||"","#ff3d68");
-      grid.innerHTML += `
-        <div class="pkg" onclick="openPkgModal('${d.id}')">
-          <img src="${img}">
-          <div class="body">
-            <h3>${p.name||""}</h3>
-            <div class="price">${p.price||""}</div>
-            <p>${p.description||""}</p>
-          </div>
-        </div>`;
-      select.innerHTML += `<option value="${p.name}">${p.name}</option>`;
-    });
-  }
+async function loadGallery(){const s=await getDoc(doc(db,"config","gallery")),g=document.getElementById("galleryGrid"),imgs=s.exists()?s.data().images||[]:[];g.innerHTML=imgs.length?imgs.map(u=>`<img src="${u}" alt="Candy Bar Vogtland">`).join(""):"<p class='muted'>Noch keine Bilder vorhanden.</p>"}
+async function loadHero(){const s=await getDoc(doc(db,"config","site"));const u=s.exists()?s.data().heroImage:"";if(u)document.getElementById("heroImage").innerHTML=`<img src="${u}" alt="Candy Bar Vogtland">`}
 
-  let pkgModalIndex = 0, pkgModalPackage = null;
-  window.openPkgModal = function(id){
-    pkgModalPackage = allPackages.find(p=>p.id===id);
-    pkgModalIndex = 0;
-    document.getElementById("pkgModalName").textContent = pkgModalPackage.name || "";
-    document.getElementById("pkgModalPrice").textContent = pkgModalPackage.price || "";
-    document.getElementById("pkgModalDesc").textContent = pkgModalPackage.description || "";
-    renderPkgModalImg();
-    document.getElementById("pkgModalOverlay").classList.add("show");
-  }
-  window.closePkgModal = function(){ document.getElementById("pkgModalOverlay").classList.remove("show"); }
-  window.pkgModalImg = function(dir){
-    const imgs = pkgModalPackage.images || [];
-    if(imgs.length===0) return;
-    pkgModalIndex = (pkgModalIndex + dir + imgs.length) % imgs.length;
-    renderPkgModalImg();
-  }
-  function renderPkgModalImg(){
-    const imgs = pkgModalPackage.images || [placeholderImg(pkgModalPackage.name||"","#ff3d68")];
-    document.getElementById("pkgModalImg").src = imgs[pkgModalIndex] || imgs[0];
-  }
+function addBlock(date){const d=new Date(date+"T00:00:00");for(let i=-1;i<=1;i++){const x=new Date(d);x.setDate(x.getDate()+i);takenDates.push(x.toISOString().slice(0,10))}}
+async function loadTakenDates(){const s=await getDocs(collection(db,"bookings"));takenDates=[];s.forEach(d=>{const b=d.data();if(b.status!=="abgelehnt"&&b.eventDate)addBlock(b.eventDate)});takenDates=[...new Set(takenDates)];renderCalendar()}
+function renderCalendar(){const c=document.getElementById("calendar"),y=calDate.getFullYear(),m=calDate.getMonth(),first=new Date(y,m,1),offset=(first.getDay()+6)%7,days=new Date(y,m+1,0).getDate(),today=new Date();today.setHours(0,0,0,0);const mn=["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];let h=`<div class="calhead"><button onclick="moveMonth(-1)">‹</button><strong>${mn[m]} ${y}</strong><button onclick="moveMonth(1)">›</button></div><div class="calgrid">${["Mo","Di","Mi","Do","Fr","Sa","So"].map(x=>`<span>${x}</span>`).join("")}`;for(let i=0;i<offset;i++)h+="<i></i>";for(let d=1;d<=days;d++){const x=new Date(y,m,d),iso=x.toISOString().slice(0,10),taken=takenDates.includes(iso),past=x<today,sel=iso===selectedDate;h+=`<button class="${taken?"taken ":""}${sel?"selected":""}" ${taken||past?"disabled":""} onclick="pickDate('${iso}')">${d}</button>`}c.innerHTML=h+"</div>"}
+window.moveMonth=(d)=>{calDate.setMonth(calDate.getMonth()+d);renderCalendar()};window.pickDate=(iso)=>{selectedDate=iso;document.getElementById("calSelected").textContent="Ausgewählt: "+iso;renderCalendar()};
 
-  async function loadGallery(){
-    const snap = await getDoc(doc(db,"config","gallery"));
-    const grid = document.getElementById("galleryGrid");
-    grid.innerHTML = "";
-    const images = snap.exists() ? (snap.data().images || []) : [];
-    if(images.length === 0){
-      grid.innerHTML = "<p style='color:var(--cream-dim)'>Noch keine Bilder hochgeladen.</p>";
-      return;
-    }
-    images.forEach(url=>{ grid.innerHTML += `<img src="${url}" alt="Candybar Foto" loading="lazy">`; });
-  }
+window.openAuth=()=>document.getElementById("authModal").classList.add("show");window.closeAuth=()=>document.getElementById("authModal").classList.remove("show");
+window.toggleAuth=()=>{authMode=authMode==="login"?"register":"login";document.getElementById("authTitle").textContent=authMode==="login"?"Anmelden":"Registrieren";document.querySelector("#authModal .btn").textContent=authMode==="login"?"Anmelden":"Konto erstellen";document.getElementById("authSwitch").textContent=authMode==="login"?"Noch kein Konto? Registrieren":"Schon ein Konto? Anmelden"};
+window.submitAuth=async()=>{try{const e=document.getElementById("authEmail").value,p=document.getElementById("authPassword").value;authMode==="login"?await signInWithEmailAndPassword(auth,e,p):await createUserWithEmailAndPassword(auth,e,p);closeAuth();if(pendingSubmit){pendingSubmit=false;document.getElementById("bookingForm").requestSubmit()}}catch(e){document.getElementById("authError").textContent="Anmeldung fehlgeschlagen."}};
+onAuthStateChanged(auth,u=>{document.getElementById("authNav").textContent=u?"Abmelden":"Anmelden";document.getElementById("authNav").onclick=u?()=>signOut(auth):openAuth;document.getElementById("myNav").style.display=u?"inline":"none";if(u)document.getElementById("f_email").value=u.email});
 
-  let calMonth = new Date().getMonth();
-  let calYear = new Date().getFullYear();
+async function loadBookings(){if(!auth.currentUser)return;const s=await getDocs(query(collection(db,"bookings"),where("email","==",auth.currentUser.email))),l=document.getElementById("myBookingsList");l.innerHTML="";if(s.empty){l.innerHTML="<p class='muted'>Noch keine Buchungen.</p>";return}s.forEach(d=>{const b=d.data();l.innerHTML+=`<div class="booking"><strong>${b.package||""}</strong><br>${b.eventDate||""}<br><span class="muted">${b.location||""}</span><br><span class="status ${b.status||"neu"}">${b.status||"neu"}</span></div>`})}
 
-  async function loadTakenDates(){
-    const snap = await getDocs(collection(db,"bookings"));
-    takenDates = [];
-    snap.forEach(d=>{
-      const b = d.data();
-      if(b.status !== "abgelehnt") takenDates.push(b.eventDate);
-    });
-    renderCalendar();
-  }
+document.getElementById("bookingForm").addEventListener("submit",async e=>{e.preventDefault();if(!selectedDate){document.getElementById("calSelected").textContent="Bitte zuerst ein Datum auswählen.";return}if(!auth.currentUser){pendingSubmit=true;openAuth();return}const status=document.getElementById("formStatus");status.textContent="Wird gesendet…";try{await addDoc(collection(db,"bookings"),{uid:auth.currentUser.uid,name:f_name.value,email:f_email.value,phone:f_phone.value,eventDate:selectedDate,package:f_package.value,location:f_location.value,message:f_message.value,status:"neu",createdAt:serverTimestamp()});status.textContent="Danke! Deine Anfrage wurde gesendet.";selectedDate=null;await loadTakenDates();await loadBookings()}catch(err){status.textContent="Fehler beim Senden."}});
 
-  function renderCalendar(){
-    const cal = document.getElementById("calendar");
-    const first = new Date(calYear, calMonth, 1);
-    const startWeekday = (first.getDay()+6)%7;
-    const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
-    const monthNames = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
-    let html = `<div class="cal-head">
-      <button onclick="calNav(-1)">‹</button>
-      <div class="label">${monthNames[calMonth]} ${calYear}</div>
-      <button onclick="calNav(1)">›</button>
-    </div>
-    <div class="cal-grid">
-      ${["Mo","Di","Mi","Do","Fr","Sa","So"].map(d=>`<div class="dow">${d}</div>`).join("")}`;
-    for(let i=0;i<startWeekday;i++) html += `<div></div>`;
-    const today = new Date(); today.setHours(0,0,0,0);
-    for(let day=1; day<=daysInMonth; day++){
-      const dateObj = new Date(calYear, calMonth, day);
-      const iso = dateObj.toISOString().slice(0,10);
-      const isPast = dateObj < today;
-      const isTaken = takenDates.includes(iso);
-      const isSelected = selectedDate === iso;
-      let cls = "";
-      if(isSelected) cls = "selected";
-      else if(isTaken) cls = "taken";
-      html += `<button ${isPast||isTaken?"disabled":""} class="${cls}" onclick="pickDate('${iso}')">${day}</button>`;
-    }
-    html += `</div>`;
-    cal.innerHTML = html;
-  }
-  window.calNav = function(dir){
-    calMonth += dir;
-    if(calMonth<0){calMonth=11;calYear--;}
-    if(calMonth>11){calMonth=0;calYear++;}
-    renderCalendar();
-  }
-  window.pickDate = function(iso){
-    selectedDate = iso;
-    document.getElementById("calSelected").textContent = "Ausgewählt: " + iso;
-    renderCalendar();
-  }
-
-  loadPackages();
-  loadGallery();
-  loadTakenDates();
-
-  let authMode = "login";
-  let pendingBookingSubmit = false;
-
-  window.openAuthModal = function(){
-    document.getElementById("authError").textContent = "";
-    document.getElementById("authModalOverlay").classList.add("show");
-  }
-  window.closeAuthModal = function(){
-    document.getElementById("authModalOverlay").classList.remove("show");
-    pendingBookingSubmit = false;
-  }
-  window.toggleAuthMode = function(){
-    authMode = authMode === "login" ? "register" : "login";
-    document.getElementById("authTitle").textContent = authMode === "login" ? "Anmelden" : "Registrieren";
-    document.getElementById("authSubmitBtn").textContent = authMode === "login" ? "Anmelden" : "Konto erstellen";
-    document.getElementById("authSwitchText").innerHTML = authMode === "login"
-      ? `Noch kein Konto? <a onclick="toggleAuthMode()">Jetzt registrieren</a>`
-      : `Schon ein Konto? <a onclick="toggleAuthMode()">Jetzt anmelden</a>`;
-  }
-  window.submitAuth = async function(){
-    const email = document.getElementById("auth_email").value;
-    const password = document.getElementById("auth_password").value;
-    const err = document.getElementById("authError");
-    err.textContent = "";
-    try{
-      if(authMode === "login"){
-        await signInWithEmailAndPassword(auth, email, password);
-      } else {
-        await createUserWithEmailAndPassword(auth, email, password);
-      }
-      closeAuthModal();
-      if(pendingBookingSubmit){
-        pendingBookingSubmit = false;
-        await actuallySubmitBooking();
-      }
-    }catch(e){
-      err.textContent = "Das hat nicht geklappt: " + (e.message || "unbekannter Fehler");
-    }
-  }
-
-  onAuthStateChanged(auth, (user)=>{
-    currentUser = user;
-    const navAuth = document.getElementById("navAuth");
-    const navMy = document.getElementById("navMyBookings");
-    if(user){
-      navAuth.textContent = "Abmelden";
-      navAuth.onclick = ()=>signOut(auth);
-      navMy.style.display = "inline";
-      document.getElementById("f_email").value = user.email;
-      loadMyBookings();
-    } else {
-      navAuth.textContent = "Anmelden";
-      navAuth.onclick = openAuthModal;
-      navMy.style.display = "none";
-      document.getElementById("myBookingsSection").style.display = "none";
-    }
-  });
-
-  window.scrollToMyBookings = function(){
-    document.getElementById("myBookingsSection").scrollIntoView({behavior:"smooth"});
-  }
-
-  async function loadMyBookings(){
-    if(!currentUser) return;
-    const section = document.getElementById("myBookingsSection");
-    section.style.display = "block";
-    const list = document.getElementById("myBookingsList");
-    list.innerHTML = "Lädt…";
-    const snap = await getDocs(query(collection(db,"bookings"), where("email","==",currentUser.email)));
-    if(snap.empty){
-      list.innerHTML = "<p style='color:var(--cream-dim)'>Du hast noch keine Buchungen.</p>";
-      return;
-    }
-    list.innerHTML = "";
-    snap.forEach(d=>{
-      const b = d.data();
-      list.innerHTML += `
-        <div class="bookingRow">
-          <div>
-            <strong>${b.package||""}</strong> — ${b.eventDate||""}<br>
-            <span style="color:var(--cream-dim);font-size:.85rem">${b.message||""}</span>
-          </div>
-          <div class="status ${b.status}">${b.status}</div>
-        </div>`;
-    });
-  }
-
-  document.getElementById("bookingForm").addEventListener("submit", async (e)=>{
-    e.preventDefault();
-    if(!selectedDate){
-      document.getElementById("calSelected").textContent = "Bitte wähl zuerst ein Datum aus.";
-      document.getElementById("calSelected").style.color = "var(--pink)";
-      return;
-    }
-    if(!currentUser){
-      pendingBookingSubmit = true;
-      authMode = "login";
-      document.getElementById("authTitle").textContent = "Erst anmelden";
-      document.getElementById("auth_email").value = document.getElementById("f_email").value;
-      openAuthModal();
-      return;
-    }
-    await actuallySubmitBooking();
-  });
-
-  async function actuallySubmitBooking(){
-    const status = document.getElementById("formStatus");
-    status.textContent = "Wird gesendet…";
-    status.style.color = "var(--cream-dim)";
-    try{
-      await addDoc(collection(db,"bookings"),{
-        name: document.getElementById("f_name").value,
-        email: document.getElementById("f_email").value,
-        phone: document.getElementById("f_phone").value,
-        eventDate: selectedDate,
-        package: document.getElementById("f_package").value,
-        message: document.getElementById("f_message").value,
-        status: "neu",
-        createdAt: serverTimestamp()
-      });
-      status.textContent = "Danke! Deine Anfrage ist da — ich melde mich bald per E-Mail.";
-      status.style.color = "var(--mint)";
-      document.getElementById("f_name").value = "";
-      document.getElementById("f_phone").value = "";
-      document.getElementById("f_message").value = "";
-      selectedDate = null;
-      document.getElementById("calSelected").textContent = "Noch kein Datum ausgewählt.";
-      document.getElementById("calSelected").style.color = "var(--yellow)";
-      loadTakenDates();
-      loadMyBookings();
-    }catch(err){
-      status.textContent = "Ups, das hat nicht geklappt. Versuch's nochmal.";
-      status.style.color = "var(--pink)";
-      console.error(err);
-    }
-  }
+loadPackages();loadGallery();loadHero();loadTakenDates();
 </script>
 </body>
 </html>
