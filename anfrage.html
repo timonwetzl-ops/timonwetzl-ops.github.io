@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anfrage — Candy Bar Vogtland</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .selectedPkg{display:flex;gap:18px;align-items:center;background:var(--bg-card);border-radius:18px;padding:18px;margin-bottom:30px;border:1px solid #3a2b1f16;}
+  .selectedPkg img{width:100px;height:100px;object-fit:cover;border-radius:12px;flex-shrink:0;}
+  .selectedPkg .price{font-family:'JetBrains Mono',monospace;color:var(--yellow);font-weight:600;}
+</style>
+</head>
+<body>
+
+<nav class="site-nav" id="site-nav"></nav>
+
+<main>
+  <section>
+    <div class="eyebrow">Anfrage</div>
+    <h2 class="section-title">Termin & Anfrage</h2>
+
+    <div id="selectedPkgBox"></div>
+
+    <form class="panel" id="bookingForm">
+      <label>Name</label>
+      <input type="text" id="f_name" required>
+
+      <label>E-Mail</label>
+      <input type="email" id="f_email" required>
+
+      <label>Telefonnummer</label>
+      <input type="tel" id="f_phone">
+
+      <label>Veranstaltungsort</label>
+      <input type="text" id="f_location" placeholder="Ort / Adresse">
+
+      <label>Datum der Veranstaltung</label>
+      <div class="cal" id="calendar"></div>
+      <div class="cal-selected" id="calSelected">Noch kein Datum ausgewählt.</div>
+
+      <label>Gewünschtes Paket</label>
+      <select id="f_package"></select>
+
+      <label>Nachricht / zusätzliche Wünsche</label>
+      <textarea id="f_message" placeholder="Anzahl Gäste, besondere Wünsche…"></textarea>
+
+      <button class="btn block" type="submit">Anfrage senden</button>
+      <div id="formStatus"></div>
+    </form>
+  </section>
+</main>
+
+<footer class="site-footer" id="site-footer"></footer>
+
+<script type="module">
+  import { renderNav, renderFooter } from "./nav.js";
+  import { db, auth, placeholderImg } from "./firebase-init.js";
+  import {
+    collection, getDocs, doc, getDoc, addDoc, serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  renderNav("anfrage.html");
+  renderFooter();
+
+  const PACKAGE_IDS = ["basic","comfort","rundumsorglos"];
+  const params = new URLSearchParams(location.search);
+  const preselected = params.get("package");
+
+  let currentUser = null;
+  let blockedDates = new Set();
+  let selectedDate = null;
+  let calMonth = new Date().getMonth();
+  let calYear = new Date().getFullYear();
+  let allPackagesData = [];
+
+  onAuthStateChanged(auth, (user)=>{
+    currentUser = user;
+    if(!user){
+      const q = new URLSearchParams();
+      q.set("next", "anfrage.html");
+      if(preselected) q.set("package", preselected);
+      location.href = "anmelden.html?" + q.toString();
+      return;
+    }
+    document.getElementById("f_email").value = user.email;
+    init();
+  });
+
+  async function init(){
+    await loadPackagesIntoSelect();
+    await showSelectedPkgBox();
+    await loadBlockedDates();
+  }
+
+  async function loadPackagesIntoSelect(){
+    const select = document.getElementById("f_package");
+    select.innerHTML = "";
+    for(const id of PACKAGE_IDS){
+      const snap = await getDoc(doc(db,"packages",id));
+      if(!snap.exists()) continue;
+      const p = {id, ...snap.data()};
+      allPackagesData.push(p);
+      const opt = document.createElement("option");
+      opt.value = p.name;
+      opt.textContent = p.name;
+      if(preselected && preselected === p.name) opt.selected = true;
+      select.appendChild(opt);
+    }
+  }
+
+  async function showSelectedPkgBox(){
+    const box = document.getElementById("selectedPkgBox");
+    const name = preselected || (allPackagesData[0] && allPackagesData[0].name);
+    const p = allPackagesData.find(p => p.name === name);
+    if(!p){ box.innerHTML = ""; return; }
+    const img = (p.images && p.images[0]) || placeholderImg(p.name,"#f28fa3");
+    box.innerHTML = `
+      <div class="eyebrow">Dein ausgewähltes Paket</div>
+      <div class="selectedPkg">
+        <img src="${img}">
+        <div>
+          <h3 style="margin-bottom:4px">${p.name}</h3>
+          <div class="price">${p.price||""}</div>
+          <p style="color:var(--cream-dim);font-size:.9rem;margin:4px 0 0">${p.description||""}</p>
+        </div>
+      </div>`;
+  }
+
+  document.getElementById("f_package").addEventListener("change", (e)=>{
+    const box = document.getElementById("selectedPkgBox");
+    const p = allPackagesData.find(p => p.name === e.target.value);
+    if(!p) return;
+    const img = (p.images && p.images[0]) || placeholderImg(p.name,"#f28fa3");
+    box.innerHTML = `
+      <div class="eyebrow">Dein ausgewähltes Paket</div>
+      <div class="selectedPkg">
+        <img src="${img}">
+        <div>
+          <h3 style="margin-bottom:4px">${p.name}</h3>
+          <div class="price">${p.price||""}</div>
+          <p style="color:var(--cream-dim);font-size:.9rem;margin:4px 0 0">${p.description||""}</p>
+        </div>
+      </div>`;
+  });
+
+  // ---------- Kalender mit ±1 Tag Pufferblockierung ----------
+  async function loadBlockedDates(){
+    const snap = await getDocs(collection(db,"bookings"));
+    blockedDates = new Set();
+    snap.forEach(d=>{
+      const b = d.data();
+      if(b.status === "abgelehnt" || !b.eventDate) return;
+      const base = new Date(b.eventDate + "T00:00:00");
+      for(const offset of [-1,0,1]){
+        const dt = new Date(base);
+        dt.setDate(dt.getDate() + offset);
+        blockedDates.add(dt.toISOString().slice(0,10));
+      }
+    });
+    renderCalendar();
+  }
+
+  function renderCalendar(){
+    const cal = document.getElementById("calendar");
+    const first = new Date(calYear, calMonth, 1);
+    const startWeekday = (first.getDay()+6)%7;
+    const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+    const monthNames = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+    let html = `<div class="cal-head">
+      <button type="button" onclick="calNav(-1)">‹</button>
+      <div class="label">${monthNames[calMonth]} ${calYear}</div>
+      <button type="button" onclick="calNav(1)">›</button>
+    </div>
+    <div class="cal-grid">
+      ${["Mo","Di","Mi","Do","Fr","Sa","So"].map(d=>`<div class="dow">${d}</div>`).join("")}`;
+    for(let i=0;i<startWeekday;i++) html += `<div></div>`;
+    const today = new Date(); today.setHours(0,0,0,0);
+    for(let day=1; day<=daysInMonth; day++){
+      const dateObj = new Date(calYear, calMonth, day);
+      const iso = dateObj.toISOString().slice(0,10);
+      const isPast = dateObj < today;
+      const isTaken = blockedDates.has(iso);
+      const isSelected = selectedDate === iso;
+      let cls = "";
+      if(isSelected) cls = "selected";
+      else if(isTaken) cls = "taken";
+      html += `<button type="button" ${isPast||isTaken?"disabled":""} class="${cls}" onclick="pickDate('${iso}')">${day}</button>`;
+    }
+    html += `</div>`;
+    cal.innerHTML = html;
+  }
+  window.calNav = function(dir){
+    calMonth += dir;
+    if(calMonth<0){calMonth=11;calYear--;}
+    if(calMonth>11){calMonth=0;calYear++;}
+    renderCalendar();
+  }
+  window.pickDate = function(iso){
+    selectedDate = iso;
+    document.getElementById("calSelected").textContent = "Ausgewählt: " + iso;
+    document.getElementById("calSelected").style.color = "var(--yellow)";
+    renderCalendar();
+  }
+
+  document.getElementById("bookingForm").addEventListener("submit", async (e)=>{
+    e.preventDefault();
+    if(!selectedDate){
+      document.getElementById("calSelected").textContent = "Bitte wähl zuerst ein Datum aus.";
+      document.getElementById("calSelected").style.color = "var(--pink)";
+      return;
+    }
+    const status = document.getElementById("formStatus");
+    status.textContent = "Wird gesendet…";
+    status.style.color = "var(--cream-dim)";
+    try{
+      await addDoc(collection(db,"bookings"),{
+        uid: currentUser.uid,
+        name: document.getElementById("f_name").value,
+        email: document.getElementById("f_email").value,
+        phone: document.getElementById("f_phone").value,
+        location: document.getElementById("f_location").value,
+        eventDate: selectedDate,
+        package: document.getElementById("f_package").value,
+        message: document.getElementById("f_message").value,
+        status: "neu",
+        createdAt: serverTimestamp()
+      });
+      status.textContent = "Danke! Deine Anfrage ist da — schau bald bei 'Meine Buchungen' vorbei.";
+      status.style.color = "var(--mint)";
+      setTimeout(()=>location.href="meine-buchungen.html", 1400);
+    }catch(err){
+      status.textContent = "Ups, das hat nicht geklappt. Versuch's nochmal.";
+      status.style.color = "var(--pink)";
+      console.error(err);
+    }
+  });
+</script>
+</body>
+</html>

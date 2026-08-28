@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meine Buchungen — Candy Bar Vogtland</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav class="site-nav" id="site-nav"></nav>
+
+<main>
+  <section>
+    <div class="eyebrow">Dein Konto</div>
+    <h2 class="section-title">Meine Buchungen</h2>
+    <div id="bookingsList"><p class="center-note">Lädt…</p></div>
+  </section>
+</main>
+
+<footer class="site-footer" id="site-footer"></footer>
+
+<script type="module">
+  import { renderNav, renderFooter } from "./nav.js";
+  import { db, auth } from "./firebase-init.js";
+  import { collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  renderNav("meine-buchungen.html");
+  renderFooter();
+
+  onAuthStateChanged(auth, (user)=>{
+    if(!user){
+      location.href = "anmelden.html?next=meine-buchungen.html";
+      return;
+    }
+    loadBookings(user.uid);
+  });
+
+  async function loadBookings(uid){
+    const list = document.getElementById("bookingsList");
+    const snap = await getDocs(query(collection(db,"bookings"), where("uid","==",uid)));
+    if(snap.empty){
+      list.innerHTML = "<p class='center-note'>Du hast noch keine Buchungen. <a href='pakete.html' style='color:var(--mint)'>Jetzt ein Paket ansehen</a></p>";
+      return;
+    }
+    const rows = [];
+    snap.forEach(d => rows.push(d.data()));
+    rows.sort((a,b) => (a.eventDate||"").localeCompare(b.eventDate||""));
+    list.innerHTML = rows.map(b => `
+      <div class="booking-row">
+        <div>
+          <strong>${b.package||""}</strong> — ${b.eventDate||""}<br>
+          <span style="color:var(--cream-dim);font-size:.85rem">${b.location ? "Ort: "+b.location : ""} ${b.message ? " · "+b.message : ""}</span>
+        </div>
+        <div class="status-badge ${b.status}">${statusLabel(b.status)}</div>
+      </div>`).join("");
+  }
+
+  function statusLabel(status){
+    if(status === "bestätigt") return "Bestätigt";
+    if(status === "abgelehnt") return "Abgelehnt";
+    return "Anfrage eingegangen";
+  }
+</script>
+</body>
+</html>
