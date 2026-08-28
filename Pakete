@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pakete — Candy Bar Vogtland</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav class="site-nav" id="site-nav"></nav>
+
+<main>
+  <section>
+    <div class="eyebrow">Pakete</div>
+    <h2 class="section-title">Wähl deine Größe</h2>
+    <div class="grid-cards" id="packagesGrid">
+      <p class="center-note">Pakete werden geladen…</p>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer" id="site-footer"></footer>
+
+<script type="module">
+  import { renderNav, renderFooter } from "./nav.js";
+  import { db, placeholderImg } from "./firebase-init.js";
+  import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  renderNav("pakete.html");
+  renderFooter();
+
+  // Feste Reihenfolge, feste IDs -> es können nie mehr als diese 3 erscheinen
+  const PACKAGE_IDS = ["basic", "comfort", "rundumsorglos"];
+
+  async function loadPackages(){
+    const grid = document.getElementById("packagesGrid");
+    grid.innerHTML = "";
+    for(const id of PACKAGE_IDS){
+      const snap = await getDoc(doc(db,"packages",id));
+      if(!snap.exists()) continue;
+      const p = snap.data();
+      const img = (p.images && p.images[0]) || placeholderImg(p.name||id,"#ff3d68");
+      grid.innerHTML += `
+        <a class="pkg-card" href="paket-detail.html?id=${id}">
+          <img src="${img}">
+          <div class="body">
+            <h3>${p.name||""}</h3>
+            <div class="price">${p.price||""}</div>
+            <p>${p.description||""}</p>
+          </div>
+        </a>`;
+    }
+  }
+  loadPackages();
+</script>
+</body>
+</html>
