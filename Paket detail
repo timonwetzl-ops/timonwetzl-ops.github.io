@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paket — Candy Bar Vogtland</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .detail-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:40px;align-items:start;}
+  @media (max-width:840px){.detail-grid{grid-template-columns:1fr;}}
+  .detail-img{border-radius:22px;overflow:hidden;aspect-ratio:4/3;background:var(--bg-card);border:1px solid #3a2b1f16;}
+  .detail-img img{width:100%;height:100%;object-fit:cover;display:block;}
+  .detail-price{font-family:'JetBrains Mono',monospace;color:var(--yellow);background:var(--bg-card);display:inline-block;padding:8px 18px;border-radius:100px;font-size:1.3rem;margin:14px 0;}
+  .includes{margin-top:20px;padding:0;list-style:none;}
+  .includes li{padding:10px 0;border-bottom:1px solid #3a2b1f12;font-size:.95rem;}
+  .includes li::before{content:"✓ ";color:var(--mint);font-weight:700;}
+</style>
+</head>
+<body>
+
+<nav class="site-nav" id="site-nav"></nav>
+
+<main>
+  <section>
+    <div class="detail-grid" id="detailContent">
+      <p class="center-note">Lädt…</p>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer" id="site-footer"></footer>
+
+<script type="module">
+  import { renderNav, renderFooter } from "./nav.js";
+  import { db, placeholderImg } from "./firebase-init.js";
+  import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  renderNav("pakete.html");
+  renderFooter();
+
+  const params = new URLSearchParams(location.search);
+  const id = params.get("id");
+  const VALID_IDS = ["basic","comfort","rundumsorglos"];
+
+  async function load(){
+    const content = document.getElementById("detailContent");
+    if(!id || !VALID_IDS.includes(id)){
+      content.innerHTML = `<p class="center-note">Dieses Paket wurde nicht gefunden. <a href="pakete.html" style="color:var(--mint)">Zurück zu den Paketen</a></p>`;
+      return;
+    }
+    const snap = await getDoc(doc(db,"packages",id));
+    if(!snap.exists()){
+      content.innerHTML = `<p class="center-note">Dieses Paket wurde nicht gefunden. <a href="pakete.html" style="color:var(--mint)">Zurück zu den Paketen</a></p>`;
+      return;
+    }
+    const p = snap.data();
+    const images = (p.images && p.images.length) ? p.images : [placeholderImg(p.name||id,"#f28fa3")];
+    const includes = (p.includes || []).filter(Boolean);
+
+    content.innerHTML = `
+      <div class="detail-img"><img src="${images[0]}"></div>
+      <div>
+        <div class="eyebrow">Paket</div>
+        <h1 class="section-title" style="margin-bottom:0">${p.name||""}</h1>
+        <div class="detail-price">${p.price||""}</div>
+        <p style="color:var(--cream-dim)">${p.description||""}</p>
+        ${includes.length ? `<ul class="includes">${includes.map(i=>`<li>${i}</li>`).join("")}</ul>` : ""}
+        <a class="btn" href="anfrage.html?package=${encodeURIComponent(p.name||id)}">Jetzt anfragen</a>
+      </div>`;
+  }
+  load();
+</script>
+</body>
+</html>
