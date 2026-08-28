@@ -1,52 +1,418 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Dashboard – Candy Bar Vogtland</title>
-<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Candy Bar Vogtland</title>
+<link rel="stylesheet" href="style.css">
 <style>
-:root{--bg:#1b1023;--card:#26152f;--card2:#2f1a3a;--pink:#ff3d68;--yellow:#ffd23f;--mint:#4ecdc4;--cream:#f5efe6;--dim:#c9bfd6}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--cream);font-family:"Work Sans"}h1,h2,h3{font-family:"Baloo 2"}#gate{min-height:100vh;display:grid;place-items:center;text-align:center}#app{display:none;max-width:1100px;margin:auto;padding:40px 5vw}.top{display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap}.stats,.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px}.stat,.card{background:var(--card);border:1px solid #ffffff14;border-radius:16px;padding:20px;margin:14px 0}.stat b{font-size:1.8rem;color:var(--yellow)}input,textarea,select{background:var(--card2);color:var(--cream);border:1px solid #ffffff22;border-radius:8px;padding:10px;width:100%;margin:5px 0}textarea{min-height:150px}.btn{padding:10px 17px;border:0;border-radius:999px;background:var(--mint);color:#1b1023;font-weight:700;cursor:pointer;margin:5px}.danger{background:var(--pink)}table{width:100%;border-collapse:collapse;background:var(--card)}td,th{padding:10px;border-bottom:1px solid #ffffff12;text-align:left;font-size:.88rem}.imgs{display:flex;flex-wrap:wrap;gap:10px}.imgs div{position:relative}.imgs img{width:120px;height:100px;object-fit:cover;border-radius:10px}.imgs button{position:absolute;right:3px;top:3px;border:0;border-radius:50%;background:var(--pink);cursor:pointer}.msg{color:var(--mint);min-height:20px}
+  #gate,#adminLoginGate{min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:20px;text-align:center;}
+  #gate input,#adminLoginGate input{margin-top:14px;padding:14px 18px;border-radius:10px;border:1px solid #3a2b1f26;background:var(--bg-card);color:var(--cream);font-size:1.05rem;text-align:center;width:260px;}
+  #gate button,#adminLoginGate button{margin-top:16px;padding:12px 28px;border-radius:100px;background:var(--pink);border:none;color:#1b1023;font-weight:700;cursor:pointer;font-size:1rem;}
+  #gateError,#adminLoginError{margin-top:12px;color:#c23b52;font-size:.9rem;min-height:1.2em;}
+
+  #app{display:none;max-width:1100px;margin:0 auto;padding:5vh 5vw;}
+  .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:34px;flex-wrap:wrap;gap:14px;}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:40px;}
+  .stat{background:var(--bg-card);border-radius:16px;padding:22px;border:1px solid #3a2b1f16;}
+  .stat .label{font-size:.8rem;color:var(--cream-dim);text-transform:uppercase;letter-spacing:1px;}
+  .stat .value{font-family:'JetBrains Mono',monospace;font-size:1.8rem;color:#c9962f;margin-top:6px;}
+
+  .dash-section{margin-bottom:50px;}
+  .dash-section h2{font-size:1.4rem;margin-bottom:18px;}
+
+  table{width:100%;border-collapse:collapse;background:var(--bg-card);border-radius:14px;overflow:hidden;}
+  th,td{text-align:left;padding:12px 14px;font-size:.9rem;border-bottom:1px solid #3a2b1f10;}
+  th{color:var(--cream-dim);font-weight:600;text-transform:uppercase;font-size:.75rem;letter-spacing:1px;}
+  select.statusSelect{background:var(--bg-card-2);color:var(--cream);border:1px solid #3a2b1f26;border-radius:8px;padding:6px 8px;}
+
+  .card{background:var(--bg-card);border-radius:16px;padding:20px;border:1px solid #3a2b1f16;margin-bottom:14px;}
+  .card .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;align-items:center;}
+  .card input,.card textarea{flex:1;min-width:120px;padding:10px 12px;border-radius:8px;border:1px solid #3a2b1f26;background:var(--bg-card-2);color:var(--cream);font-family:inherit;}
+  .card textarea{width:100%;min-height:90px;resize:vertical;}
+  .card button{padding:10px 16px;border-radius:8px;border:none;background:var(--mint);color:#1b1023;font-weight:600;cursor:pointer;}
+  .card button.danger{background:var(--pink);}
+  .imgList{display:flex;flex-wrap:wrap;gap:12px;margin-top:14px;}
+  .imgList div{position:relative;}
+  .imgList img{width:110px;height:110px;object-fit:cover;border-radius:10px;}
+  .imgList button{position:absolute;top:4px;right:4px;background:var(--pink);color:#1b1023;border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;font-weight:700;padding:0;}
+  .msg{font-size:.85rem;margin-top:8px;color:var(--mint);min-height:1.2em;}
+  .fileBtn{display:inline-block;padding:10px 18px;border-radius:8px;background:var(--bg-card-2);border:1px dashed var(--mint);color:#4a8266;cursor:pointer;font-size:.9rem;}
+  .fileBtn input{display:none;}
+  .includesEdit textarea{width:100%;min-height:70px;}
 </style>
 </head>
 <body>
-<div id="gate"><div><h1>Candy Bar Vogtland</h1><p class="msg">Admin-Zugang</p><input id="code" type="password" placeholder="Zugangscode"><br><button class="btn" onclick="login()">Anmelden</button><p id="err" style="color:var(--pink)"></p></div></div>
+
+<div id="gate">
+  <h1>Dashboard</h1>
+  <p style="color:var(--cream-dim)">Gib deinen Zugangscode ein</p>
+  <input type="password" id="codeInput" placeholder="••••••" maxlength="20">
+  <br><button onclick="checkCode()">Weiter</button>
+  <div id="gateError"></div>
+</div>
+
+<div id="adminLoginGate" style="display:none">
+  <h1>Admin-Anmeldung</h1>
+  <p style="color:var(--cream-dim)">Melde dich mit deinem Admin-Konto an</p>
+  <input type="email" id="adminEmail" placeholder="E-Mail">
+  <input type="password" id="adminPassword" placeholder="Passwort">
+  <br><button onclick="adminSignIn()">Anmelden</button>
+  <div id="adminLoginError"></div>
+</div>
+
 <div id="app">
-<div class="top"><h1>Dashboard – Candy Bar Vogtland</h1><button class="btn danger" onclick="location.reload()">Abmelden</button></div>
-<div class="stats"><div class="stat">Anfragen gesamt<br><b id="total">–</b></div><div class="stat">Bestätigt<br><b id="confirmed">–</b></div><div class="stat">Umsatz<br><b id="revenue">–</b></div></div>
+  <div class="top">
+    <h1>Candy Bar Vogtland — Übersicht</h1>
+    <button onclick="location.reload()" style="background:none;border:1px solid var(--cream-dim);color:var(--cream-dim);padding:8px 16px;border-radius:100px;cursor:pointer;">Abmelden</button>
+  </div>
 
-<section><h2>Buchungen & Anfragen</h2><div style="overflow:auto"><table><thead><tr><th>Datum</th><th>Name</th><th>Paket</th><th>Kontakt</th><th>Ort</th><th>Status</th></tr></thead><tbody id="bookings"></tbody></table></div></section>
+  <div class="stats">
+    <div class="stat"><div class="label">Anfragen gesamt</div><div class="value" id="statTotal">–</div></div>
+    <div class="stat"><div class="label">Bestätigt</div><div class="value" id="statConfirmed">–</div></div>
+    <div class="stat"><div class="label">Umsatz (bestätigt)</div><div class="value" id="statRevenue">–</div></div>
+  </div>
 
-<section><h2>Startseitenbild</h2><div class="card"><input id="heroFile" type="file" accept="image/*"><button class="btn" onclick="uploadHero()">Bild hochladen</button><span id="heroMsg" class="msg"></span></div></section>
+  <div class="dash-section">
+    <h2>Startseite</h2>
+    <div class="card">
+      <label class="fileBtn">📷 Hauptbild ändern
+        <input type="file" accept="image/*" onchange="handleHeroUpload(event)">
+      </label>
+      <div id="heroPreviewWrap" style="margin-top:14px;"><img id="heroPreview" style="width:200px;border-radius:12px;"></div>
+      <div class="row">
+        <textarea id="heroTextInput" placeholder="Startseitentext"></textarea>
+      </div>
+      <div class="row"><button onclick="saveHomeText()">Text speichern</button></div>
+      <div class="msg" id="homeMsg"></div>
+    </div>
+  </div>
 
-<section><h2>Pakete</h2><div id="packages"></div></section>
+  <div class="dash-section">
+    <h2>Buchungen / Anfragen</h2>
+    <table>
+      <thead><tr><th>Datum</th><th>Name</th><th>Paket</th><th>Kontakt</th><th>Ort / Nachricht</th><th>Status</th></tr></thead>
+      <tbody id="bookingsBody"></tbody>
+    </table>
+  </div>
 
-<section><h2>Galerie</h2><div class="card"><input id="galleryFile" type="file" accept="image/*"><button class="btn" onclick="uploadGallery()">Bild hochladen</button><span id="galleryMsg" class="msg"></span></div><div class="imgs" id="gallery"></div></section>
+  <div class="dash-section">
+    <h2>Pakete & Preise</h2>
+    <div id="packagesList"></div>
+    <div class="msg" id="pkgMsg"></div>
+  </div>
 
-<section><h2>Rechtliche Seiten</h2><div class="card"><label>Impressum</label><textarea id="impressum"></textarea><label>AGB</label><textarea id="agb"></textarea><label>Datenschutz</label><textarea id="datenschutz"></textarea><button class="btn" onclick="saveLegal()">Speichern</button><span id="legalMsg" class="msg"></span></div></section>
+  <div class="dash-section">
+    <h2>Galerie-Bilder</h2>
+    <div class="card">
+      <label class="fileBtn">📷 Bild hochladen
+        <input type="file" accept="image/*" onchange="handleGalleryUpload(event)">
+      </label>
+      <span class="msg" id="galleryUploadMsg"></span>
+    </div>
+    <div class="imgList" id="imgList"></div>
+  </div>
+
+  <div class="dash-section">
+    <h2>Rechtliche Seiten</h2>
+    <div class="card">
+      <strong>Impressum</strong>
+      <div class="row"><textarea id="legal_impressum"></textarea></div>
+      <div class="row"><button onclick="saveLegal('impressum')">Speichern</button></div>
+    </div>
+    <div class="card">
+      <strong>AGB</strong>
+      <div class="row"><textarea id="legal_agb"></textarea></div>
+      <div class="row"><button onclick="saveLegal('agb')">Speichern</button></div>
+    </div>
+    <div class="card">
+      <strong>Datenschutz</strong>
+      <div class="row"><textarea id="legal_datenschutz"></textarea></div>
+      <div class="row"><button onclick="saveLegal('datenschutz')">Speichern</button></div>
+    </div>
+    <div class="msg" id="legalMsg"></div>
+  </div>
 </div>
 
 <script type="module">
-import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import{getFirestore,collection,getDocs,doc,getDoc,updateDoc,setDoc,deleteDoc}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import{getStorage,ref,uploadBytes,getDownloadURL}from"https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
-import{firebaseConfig,DASHBOARD_CODE}from"./firebase-config.js";
-const app=initializeApp(firebaseConfig),db=getFirestore(app),storage=getStorage(app);
-window.login=()=>{if(document.getElementById("code").value===DASHBOARD_CODE){gate.style.display="none";appEl.style.display="block";loadAll()}else err.textContent="Falscher Zugangscode."};
-const gate=document.getElementById("gate"),appEl=document.getElementById("app");
-async function upload(file,path){const r=ref(storage,`${path}/${Date.now()}_${file.name}`);await uploadBytes(r,file);return getDownloadURL(r)}
-async function loadAll(){await loadBookings();await loadPackages();await loadGallery();await loadLegal()}
-async function loadBookings(){const s=await getDocs(collection(db,"bookings")),body=document.getElementById("bookings");body.innerHTML="";let t=0,c=0,r=0;s.forEach(d=>{const b=d.data();t++;if(b.status==="bestätigt")c++;body.innerHTML+=`<tr><td>${b.eventDate||""}</td><td>${b.name||""}</td><td>${b.package||""}</td><td>${b.email||""}<br>${b.phone||""}</td><td>${b.location||""}</td><td><select onchange="status('${d.id}',this.value)"><option ${b.status==="neu"?"selected":""}>neu</option><option ${b.status==="bestätigt"?"selected":""}>bestätigt</option><option ${b.status==="abgelehnt"?"selected":""}>abgelehnt</option></select></td></tr>`});total.textContent=t;confirmed.textContent=c;revenue.textContent=r.toFixed(2)+" €"}
-window.status=async(id,v)=>{await updateDoc(doc(db,"bookings",id),{status:v});loadBookings()}
-async function loadPackages(){const s=await getDocs(collection(db,"packages")),wrap=document.getElementById("packages");wrap.innerHTML="";s.forEach(d=>{const p=d.data();wrap.innerHTML+=`<div class="card"><input id="n-${d.id}" value="${p.name||""}"><input id="p-${d.id}" value="${p.price||""}"><textarea id="d-${d.id}">${p.description||""}</textarea><button class="btn" onclick="savePkg('${d.id}')">Speichern</button><input type="file" accept="image/*" onchange="pkgImg(event,'${d.id}')"><div class="imgs">${(p.images||[]).map((u,i)=>`<div><img src="${u}"><button onclick="delImg('${d.id}',${i})">×</button></div>`).join("")}</div></div>`})}
-window.savePkg=async id=>{await updateDoc(doc(db,"packages",id),{name:document.getElementById("n-"+id).value,price:document.getElementById("p-"+id).value,description:document.getElementById("d-"+id).value});loadPackages()}
-window.pkgImg=async(e,id)=>{const f=e.target.files[0];if(!f)return;const u=await upload(f,"packages/"+id),r=doc(db,"packages",id),s=await getDoc(r),a=s.data().images||[];a.push(u);await updateDoc(r,{images:a});loadPackages()}
-window.delImg=async(id,i)=>{const r=doc(db,"packages",id),s=await getDoc(r),a=s.data().images||[];a.splice(i,1);await updateDoc(r,{images:a});loadPackages()}
-async function loadGallery(){const s=await getDoc(doc(db,"config","gallery")),a=s.exists()?s.data().images||[]:[],g=document.getElementById("gallery");g.innerHTML=a.map((u,i)=>`<div><img src="${u}"><button onclick="delGallery(${i})">×</button></div>`).join("")}
-window.uploadGallery=async()=>{const f=galleryFile.files[0];if(!f)return;const u=await upload(f,"gallery"),r=doc(db,"config","gallery"),s=await getDoc(r),a=s.exists()?s.data().images||[]:[];a.push(u);await setDoc(r,{images:a});galleryMsg.textContent="Hochgeladen ✓";loadGallery()}
-window.delGallery=async i=>{const r=doc(db,"config","gallery"),s=await getDoc(r),a=s.data().images||[];a.splice(i,1);await setDoc(r,{images:a});loadGallery()}
-window.uploadHero=async()=>{const f=heroFile.files[0];if(!f)return;const u=await upload(f,"site"),s=await getDoc(doc(db,"config","site"));await setDoc(doc(db,"config","site"),{...(s.exists()?s.data():{}),heroImage:u});heroMsg.textContent="Gespeichert ✓"}
-async function loadLegal(){const s=await getDoc(doc(db,"config","legal")),a=s.exists()?s.data():{};impressum.value=a.impressum||"";agb.value=a.agb||"";datenschutz.value=a.datenschutz||""}
-window.saveLegal=async()=>{await setDoc(doc(db,"config","legal"),{impressum:impressum.value,agb:agb.value,datenschutz:datenschutz.value});legalMsg.textContent="Gespeichert ✓"}
+  import { db, auth, storage, uploadFile, DASHBOARD_CODE, ADMIN_EMAIL } from "./firebase-init.js";
+  import {
+    collection, getDocs, doc, getDoc, setDoc, updateDoc
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import {
+    signInWithEmailAndPassword, onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  const PACKAGE_IDS = ["basic","comfort","rundumsorglos"];
+  const PACKAGE_DEFAULTS = {
+    basic: {name:"Basic", price:"89 €", description:"Candybar-Gestell zum Selbstbefüllen – für alle, die selbst dekorieren und befüllen möchten.", includes:["Gestell zum Selbstbefüllen","Abholung bei uns"]},
+    comfort: {name:"Comfort", price:"149 €", description:"Gestell inklusive Gläsern und passender Deko – du bringst nur noch deine eigenen Süßigkeiten mit.", includes:["Gestell inkl. Gläser","Passende Deko","Abholung bei uns"]},
+    rundumsorglos: {name:"Rundum sorglos", price:"229 €", description:"Alles komplett – Gestell, Gläser, Deko und bereits befüllt mit Süßigkeiten.", includes:["Gestell inkl. Gläser","Deko","Bereits befüllt mit Süßigkeiten","Abholung bei uns"]}
+  };
+
+  let packagePrices = {};
+
+  window.checkCode = function(){
+    const val = document.getElementById("codeInput").value;
+    if(val === DASHBOARD_CODE){
+      document.getElementById("gate").style.display = "none";
+      checkAdminAuth();
+    } else {
+      document.getElementById("gateError").textContent = "Falscher Code, versuch's nochmal.";
+    }
+  }
+
+  function checkAdminAuth(){
+    onAuthStateChanged(auth, (user)=>{
+      if(user && user.email === ADMIN_EMAIL){
+        document.getElementById("adminLoginGate").style.display = "none";
+        document.getElementById("app").style.display = "block";
+        loadAll();
+      } else {
+        document.getElementById("adminLoginGate").style.display = "flex";
+        document.getElementById("app").style.display = "none";
+      }
+    });
+  }
+
+  window.adminSignIn = async function(){
+    const email = document.getElementById("adminEmail").value;
+    const password = document.getElementById("adminPassword").value;
+    const err = document.getElementById("adminLoginError");
+    err.textContent = "";
+    try{
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      if(cred.user.email !== ADMIN_EMAIL){
+        err.textContent = "Dieses Konto hat keine Admin-Rechte.";
+        return;
+      }
+    }catch(e){
+      err.textContent = "Anmeldung fehlgeschlagen: " + (e.message || "");
+    }
+  }
+
+  async function loadAll(){
+    await ensurePackages();
+    await loadHome();
+    await loadPackages();
+    await loadBookings();
+    await loadGallery();
+    await loadLegal();
+  }
+
+  async function ensurePackages(){
+    for(const id of PACKAGE_IDS){
+      const ref_ = doc(db,"packages",id);
+      const snap = await getDoc(ref_);
+      if(!snap.exists()){
+        await setDoc(ref_, {...PACKAGE_DEFAULTS[id], images:[]});
+      }
+    }
+  }
+
+  // ---------- Startseite ----------
+  async function loadHome(){
+    const snap = await getDoc(doc(db,"config","home"));
+    const data = snap.exists() ? snap.data() : {};
+    if(data.heroImage) document.getElementById("heroPreview").src = data.heroImage;
+    document.getElementById("heroTextInput").value = data.heroText || "";
+  }
+
+  window.handleHeroUpload = async function(event){
+    const file = event.target.files[0];
+    if(!file) return;
+    const url = await uploadFile(file, "home");
+    document.getElementById("heroPreview").src = url;
+    const ref_ = doc(db,"config","home");
+    const snap = await getDoc(ref_);
+    const data = snap.exists() ? snap.data() : {};
+    await setDoc(ref_, {...data, heroImage:url});
+    document.getElementById("homeMsg").textContent = "Bild gespeichert ✓";
+    setTimeout(()=>document.getElementById("homeMsg").textContent="",1500);
+  }
+
+  window.saveHomeText = async function(){
+    const ref_ = doc(db,"config","home");
+    const snap = await getDoc(ref_);
+    const data = snap.exists() ? snap.data() : {};
+    await setDoc(ref_, {...data, heroText: document.getElementById("heroTextInput").value});
+    document.getElementById("homeMsg").textContent = "Text gespeichert ✓";
+    setTimeout(()=>document.getElementById("homeMsg").textContent="",1500);
+  }
+
+  // ---------- Bookings ----------
+  async function loadBookings(){
+    const snap = await getDocs(collection(db,"bookings"));
+    const body = document.getElementById("bookingsBody");
+    body.innerHTML = "";
+    let total = 0, confirmed = 0, revenue = 0;
+    const rows = [];
+    snap.forEach(d=>{ rows.push({id:d.id, ...d.data()}); });
+    rows.sort((a,b)=> (a.eventDate||"").localeCompare(b.eventDate||""));
+    rows.forEach(b=>{
+      total++;
+      if(b.status === "bestätigt"){
+        confirmed++;
+        revenue += packagePrices[b.package] || 0;
+      }
+      body.innerHTML += `
+        <tr>
+          <td>${b.eventDate || ""}</td>
+          <td>${b.name || ""}</td>
+          <td>${b.package || ""}</td>
+          <td>${b.email || ""}<br>${b.phone || ""}</td>
+          <td>${b.location ? b.location+"<br>" : ""}${b.message || ""}</td>
+          <td>
+            <select class="statusSelect" onchange="updateStatus('${b.id}', this.value)">
+              <option value="neu" ${b.status==="neu"?"selected":""}>Neu</option>
+              <option value="bestätigt" ${b.status==="bestätigt"?"selected":""}>Bestätigt</option>
+              <option value="abgelehnt" ${b.status==="abgelehnt"?"selected":""}>Abgelehnt</option>
+            </select>
+          </td>
+        </tr>`;
+    });
+    document.getElementById("statTotal").textContent = total;
+    document.getElementById("statConfirmed").textContent = confirmed;
+    document.getElementById("statRevenue").textContent = revenue.toFixed(2) + " €";
+  }
+
+  window.updateStatus = async function(id, status){
+    await updateDoc(doc(db,"bookings",id), {status});
+    loadBookings();
+  }
+
+  // ---------- Packages ----------
+  async function loadPackages(){
+    const list = document.getElementById("packagesList");
+    list.innerHTML = "";
+    packagePrices = {};
+    for(const id of PACKAGE_IDS){
+      const snap = await getDoc(doc(db,"packages",id));
+      const p = snap.data();
+      const numeric = parseFloat((p.price||"").toString().replace(/[^\d.,]/g,"").replace(",",".")) || 0;
+      packagePrices[p.name] = numeric;
+      const images = p.images || [];
+      const includes = (p.includes || []).join("\n");
+      list.innerHTML += `
+        <div class="card" data-id="${id}">
+          <div class="row">
+            <input type="text" value="${p.name||""}" placeholder="Name" class="pName">
+            <input type="text" value="${p.price||""}" placeholder="Preis" class="pPrice">
+          </div>
+          <div class="row">
+            <input type="text" value="${p.description||""}" placeholder="Beschreibung" class="pDesc" style="flex:3">
+          </div>
+          <div class="row includesEdit">
+            <textarea class="pIncludes" placeholder="Enthaltene Leistungen (eine pro Zeile)">${includes}</textarea>
+          </div>
+          <div class="row">
+            <button onclick="savePackage('${id}', this)">Speichern</button>
+            <label class="fileBtn">📷 Bild hinzufügen
+              <input type="file" accept="image/*" onchange="handlePackageUpload(event,'${id}')">
+            </label>
+          </div>
+          <div class="imgList" id="pkgImgs-${id}">
+            ${images.map((url,i)=>`
+              <div><img src="${url}"><button onclick="removePackageImage('${id}', ${i})">×</button></div>`).join("")}
+          </div>
+        </div>`;
+    }
+  }
+
+  window.savePackage = async function(id, btn){
+    const card = btn.closest(".card");
+    const name = card.querySelector(".pName").value;
+    const price = card.querySelector(".pPrice").value;
+    const description = card.querySelector(".pDesc").value;
+    const includes = card.querySelector(".pIncludes").value.split("\n").map(s=>s.trim()).filter(Boolean);
+    await updateDoc(doc(db,"packages",id), {name, price, description, includes});
+    document.getElementById("pkgMsg").textContent = "Gespeichert ✓";
+    setTimeout(()=>document.getElementById("pkgMsg").textContent = "", 1500);
+    loadPackages().then(loadBookings);
+  }
+
+  window.handlePackageUpload = async function(event, packageId){
+    const file = event.target.files[0];
+    if(!file) return;
+    event.target.disabled = true;
+    try{
+      const url = await uploadFile(file, `packages/${packageId}`);
+      const ref_ = doc(db,"packages",packageId);
+      const snap = await getDoc(ref_);
+      const images = (snap.data().images) || [];
+      images.push(url);
+      await updateDoc(ref_, {images});
+      loadPackages().then(loadBookings);
+    }catch(e){ alert("Upload fehlgeschlagen: " + e.message); }
+    event.target.disabled = false;
+  }
+
+  window.removePackageImage = async function(packageId, index){
+    const ref_ = doc(db,"packages",packageId);
+    const snap = await getDoc(ref_);
+    const images = (snap.data().images) || [];
+    images.splice(index,1);
+    await updateDoc(ref_, {images});
+    loadPackages().then(loadBookings);
+  }
+
+  // ---------- Gallery ----------
+  async function loadGallery(){
+    const ref_ = doc(db,"config","gallery");
+    const snap = await getDoc(ref_);
+    const images = snap.exists() ? (snap.data().images || []) : [];
+    const list = document.getElementById("imgList");
+    list.innerHTML = "";
+    images.forEach((url, i)=>{
+      list.innerHTML += `<div><img src="${url}"><button onclick="removeImage(${i})">×</button></div>`;
+    });
+  }
+
+  window.handleGalleryUpload = async function(event){
+    const file = event.target.files[0];
+    if(!file) return;
+    const msg = document.getElementById("galleryUploadMsg");
+    msg.textContent = "Lädt hoch…";
+    try{
+      const url = await uploadFile(file, "gallery");
+      const ref_ = doc(db,"config","gallery");
+      const snap = await getDoc(ref_);
+      const images = snap.exists() ? (snap.data().images || []) : [];
+      images.push(url);
+      await setDoc(ref_, {images});
+      msg.textContent = "Hochgeladen ✓";
+      setTimeout(()=>msg.textContent="",1500);
+      loadGallery();
+    }catch(e){ msg.textContent = "Fehler beim Hochladen"; alert(e.message); }
+  }
+
+  window.removeImage = async function(index){
+    const ref_ = doc(db,"config","gallery");
+    const snap = await getDoc(ref_);
+    const images = snap.exists() ? (snap.data().images || []) : [];
+    images.splice(index,1);
+    await setDoc(ref_, {images});
+    loadGallery();
+  }
+
+  // ---------- Legal ----------
+  async function loadLegal(){
+    const snap = await getDoc(doc(db,"config","legal"));
+    const data = snap.exists() ? snap.data() : {};
+    document.getElementById("legal_impressum").value = data.impressum || "";
+    document.getElementById("legal_agb").value = data.agb || "";
+    document.getElementById("legal_datenschutz").value = data.datenschutz || "";
+  }
+
+  window.saveLegal = async function(field){
+    const ref_ = doc(db,"config","legal");
+    const snap = await getDoc(ref_);
+    const data = snap.exists() ? snap.data() : {};
+    data[field] = document.getElementById("legal_"+field).value;
+    await setDoc(ref_, data);
+    document.getElementById("legalMsg").textContent = "Gespeichert ✓";
+    setTimeout(()=>document.getElementById("legalMsg").textContent="",1500);
+  }
 </script>
 </body>
 </html>
