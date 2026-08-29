@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kontakt — Candy Bar Vogtland</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav class="site-nav" id="site-nav"></nav>
+
+<main>
+  <section>
+    <div class="eyebrow">Kontakt</div>
+    <h2 class="section-title">Frag uns einfach</h2>
+    <form class="panel" id="contactForm">
+      <label>Name</label>
+      <input type="text" id="c_name" required>
+
+      <label>E-Mail</label>
+      <input type="email" id="c_email" required>
+
+      <label>Adresse (optional)</label>
+      <input type="text" id="c_address">
+
+      <label>Betreff (optional)</label>
+      <input type="text" id="c_subject">
+
+      <label>Nachricht</label>
+      <textarea id="c_message" required></textarea>
+
+      <button class="btn block" type="submit">Nachricht senden</button>
+      <div id="contactStatus"></div>
+    </form>
+  </section>
+</main>
+
+<footer class="site-footer" id="site-footer"></footer>
+
+<script type="module">
+  import { renderNav, renderFooter } from "./nav.js";
+  import { db } from "./firebase-init.js";
+  import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  renderNav("kontakt.html");
+  renderFooter();
+
+  document.getElementById("contactForm").addEventListener("submit", async (e)=>{
+    e.preventDefault();
+    const status = document.getElementById("contactStatus");
+    status.textContent = "Wird gesendet…";
+    status.style.color = "var(--cream-dim)";
+    try{
+      await addDoc(collection(db,"contacts"),{
+        name: document.getElementById("c_name").value,
+        email: document.getElementById("c_email").value,
+        address: document.getElementById("c_address").value,
+        subject: document.getElementById("c_subject").value,
+        message: document.getElementById("c_message").value,
+        createdAt: serverTimestamp()
+      });
+      status.textContent = "Danke! Deine Nachricht ist angekommen.";
+      status.style.color = "var(--mint)";
+      e.target.reset();
+    }catch(err){
+      status.textContent = "Ups, das hat nicht geklappt. Versuch's nochmal.";
+      status.style.color = "var(--pink)";
+    }
+  });
+</script>
+</body>
+</html>

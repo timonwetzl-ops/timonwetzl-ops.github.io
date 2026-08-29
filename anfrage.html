@@ -101,6 +101,7 @@
       const snap = await getDoc(doc(db,"packages",id));
       if(!snap.exists()) continue;
       const p = {id, ...snap.data()};
+      p.priceNumeric = parseFloat((p.price||"").toString().replace(/[^\d.,]/g,"").replace(",",".")) || 0;
       allPackagesData.push(p);
       const opt = document.createElement("option");
       opt.value = p.name;
@@ -223,8 +224,11 @@
         location: document.getElementById("f_location").value,
         eventDate: selectedDate,
         package: document.getElementById("f_package").value,
+        price: (allPackagesData.find(p=>p.name===document.getElementById("f_package").value)||{}).priceNumeric || 0,
         message: document.getElementById("f_message").value,
-        status: "neu",
+        bookingStatus: "neu",
+        paymentStatus: "offen",
+        paidAmount: 0,
         createdAt: serverTimestamp()
       });
       status.textContent = "Danke! Deine Anfrage ist da — schau bald bei 'Meine Buchungen' vorbei.";

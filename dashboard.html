@@ -89,10 +89,18 @@
   </div>
 
   <div class="dash-section">
-    <h2>Buchungen / Anfragen</h2>
+    <h2>Buchungen</h2>
     <table>
-      <thead><tr><th>Datum</th><th>Name</th><th>Paket</th><th>Kontakt</th><th>Ort / Nachricht</th><th>Status</th></tr></thead>
+      <thead><tr><th>Datum</th><th>Name</th><th>Paket</th><th>Kontakt</th><th>Ort / Nachricht</th><th>Buchung</th><th>Zahlung</th><th>Preis / Bezahlt / Offen</th></tr></thead>
       <tbody id="bookingsBody"></tbody>
+    </table>
+  </div>
+
+  <div class="dash-section">
+    <h2>Kontaktanfragen</h2>
+    <table>
+      <thead><tr><th>Datum</th><th>Name</th><th>E-Mail</th><th>Adresse</th><th>Betreff</th><th>Nachricht</th></tr></thead>
+      <tbody id="contactsBody"></tbody>
     </table>
   </div>
 
@@ -137,7 +145,7 @@
 <script type="module">
   import { db, auth, storage, uploadFile, DASHBOARD_CODE, ADMIN_EMAIL } from "./firebase-init.js";
   import {
-    collection, getDocs, doc, getDoc, setDoc, updateDoc
+    collection, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import {
     signInWithEmailAndPassword, onAuthStateChanged
@@ -196,17 +204,16 @@
     await loadHome();
     await loadPackages();
     await loadBookings();
+    await loadContacts();
     await loadGallery();
     await loadLegal();
   }
 
   async function ensurePackages(){
+    const snap = await getDocs(collection(db,"packages"));
+    if(!snap.empty) return; // schon mal befüllt -> nichts automatisch nachlegen (sonst kommt Gelöschtes zurück)
     for(const id of PACKAGE_IDS){
-      const ref_ = doc(db,"packages",id);
-      const snap = await getDoc(ref_);
-      if(!snap.exists()){
-        await setDoc(ref_, {...PACKAGE_DEFAULTS[id], images:[]});
-      }
+      await setDoc(doc(db,"packages",id), {...PACKAGE_DEFAULTS[id], images:[], stripeLink:""});
     }
   }
 
@@ -250,10 +257,15 @@
     snap.forEach(d=>{ rows.push({id:d.id, ...d.data()}); });
     rows.sort((a,b)=> (a.eventDate||"").localeCompare(b.eventDate||""));
     rows.forEach(b=>{
+      const bookingStatus = b.bookingStatus || b.status || "neu";
+      const paymentStatus = b.paymentStatus || "offen";
+      const price = b.price || packagePrices[b.package] || 0;
+      const paid = paymentStatus === "bezahlt" ? price : (b.paidAmount || 0);
+      const open = Math.max(price - paid, 0);
       total++;
-      if(b.status === "bestätigt"){
+      if(bookingStatus === "bestätigt"){
         confirmed++;
-        revenue += packagePrices[b.package] || 0;
+        if(paymentStatus === "bezahlt") revenue += price;
       }
       body.innerHTML += `
         <tr>
@@ -263,12 +275,21 @@
           <td>${b.email || ""}<br>${b.phone || ""}</td>
           <td>${b.location ? b.location+"<br>" : ""}${b.message || ""}</td>
           <td>
-            <select class="statusSelect" onchange="updateStatus('${b.id}', this.value)">
-              <option value="neu" ${b.status==="neu"?"selected":""}>Neu</option>
-              <option value="bestätigt" ${b.status==="bestätigt"?"selected":""}>Bestätigt</option>
-              <option value="abgelehnt" ${b.status==="abgelehnt"?"selected":""}>Abgelehnt</option>
+            <select class="statusSelect" onchange="updateBookingStatus('${b.id}', this.value)">
+              <option value="neu" ${bookingStatus==="neu"?"selected":""}>Neu</option>
+              <option value="bestätigt" ${bookingStatus==="bestätigt"?"selected":""}>Bestätigt</option>
+              <option value="abgelehnt" ${bookingStatus==="abgelehnt"?"selected":""}>Abgelehnt</option>
             </select>
           </td>
+          <td>
+            <select class="statusSelect" onchange="updatePaymentStatus('${b.id}', this.value)">
+              <option value="offen" ${paymentStatus==="offen"?"selected":""}>Offen</option>
+              <option value="bezahlt" ${paymentStatus==="bezahlt"?"selected":""}>Bezahlt</option>
+              <option value="fehlgeschlagen" ${paymentStatus==="fehlgeschlagen"?"selected":""}>Fehlgeschlagen</option>
+              <option value="erstattet" ${paymentStatus==="erstattet"?"selected":""}>Erstattet</option>
+            </select>
+          </td>
+          <td style="font-size:.8rem">${price.toFixed(2)} € / ${paid.toFixed(2)} € / ${open.toFixed(2)} €</td>
         </tr>`;
     });
     document.getElementById("statTotal").textContent = total;
@@ -276,9 +297,44 @@
     document.getElementById("statRevenue").textContent = revenue.toFixed(2) + " €";
   }
 
-  window.updateStatus = async function(id, status){
-    await updateDoc(doc(db,"bookings",id), {status});
+  window.updateBookingStatus = async function(id, bookingStatus){
+    await updateDoc(doc(db,"bookings",id), {bookingStatus});
     loadBookings();
+  }
+  window.updatePaymentStatus = async function(id, paymentStatus){
+    const updateData = {paymentStatus};
+    if(paymentStatus === "bezahlt"){
+      const snap = await getDoc(doc(db,"bookings",id));
+      updateData.paidAmount = snap.data().price || 0;
+    }
+    await updateDoc(doc(db,"bookings",id), updateData);
+    loadBookings();
+  }
+
+  // ---------- Contacts ----------
+  async function loadContacts(){
+    const snap = await getDocs(collection(db,"contacts"));
+    const body = document.getElementById("contactsBody");
+    body.innerHTML = "";
+    const rows = [];
+    snap.forEach(d=>{ rows.push(d.data()); });
+    rows.sort((a,b)=> (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
+    if(rows.length === 0){
+      body.innerHTML = `<tr><td colspan="6" style="color:var(--cream-dim)">Noch keine Kontaktanfragen.</td></tr>`;
+      return;
+    }
+    rows.forEach(c=>{
+      const date = c.createdAt?.seconds ? new Date(c.createdAt.seconds*1000).toLocaleDateString("de-DE") : "";
+      body.innerHTML += `
+        <tr>
+          <td>${date}</td>
+          <td>${c.name||""}</td>
+          <td>${c.email||""}</td>
+          <td>${c.address||""}</td>
+          <td>${c.subject||""}</td>
+          <td>${c.message||""}</td>
+        </tr>`;
+    });
   }
 
   // ---------- Packages ----------
@@ -288,6 +344,7 @@
     packagePrices = {};
     for(const id of PACKAGE_IDS){
       const snap = await getDoc(doc(db,"packages",id));
+      if(!snap.exists()) continue;
       const p = snap.data();
       const numeric = parseFloat((p.price||"").toString().replace(/[^\d.,]/g,"").replace(",",".")) || 0;
       packagePrices[p.name] = numeric;
@@ -306,10 +363,14 @@
             <textarea class="pIncludes" placeholder="Enthaltene Leistungen (eine pro Zeile)">${includes}</textarea>
           </div>
           <div class="row">
+            <input type="text" value="${p.stripeLink||""}" placeholder="Stripe Payment Link (URL)" class="pStripe" style="flex:3">
+          </div>
+          <div class="row">
             <button onclick="savePackage('${id}', this)">Speichern</button>
             <label class="fileBtn">📷 Bild hinzufügen
               <input type="file" accept="image/*" onchange="handlePackageUpload(event,'${id}')">
             </label>
+            <button class="danger" onclick="deletePackage('${id}', '${p.name||id}')">Löschen</button>
           </div>
           <div class="imgList" id="pkgImgs-${id}">
             ${images.map((url,i)=>`
@@ -325,9 +386,18 @@
     const price = card.querySelector(".pPrice").value;
     const description = card.querySelector(".pDesc").value;
     const includes = card.querySelector(".pIncludes").value.split("\n").map(s=>s.trim()).filter(Boolean);
-    await updateDoc(doc(db,"packages",id), {name, price, description, includes});
+    const stripeLink = card.querySelector(".pStripe").value.trim();
+    await updateDoc(doc(db,"packages",id), {name, price, description, includes, stripeLink});
     document.getElementById("pkgMsg").textContent = "Gespeichert ✓";
     setTimeout(()=>document.getElementById("pkgMsg").textContent = "", 1500);
+    loadPackages().then(loadBookings);
+  }
+
+  window.deletePackage = async function(id, name){
+    if(!confirm(`Möchtest du "${name}" wirklich löschen?`)) return;
+    await deleteDoc(doc(db,"packages",id));
+    document.getElementById("pkgMsg").textContent = `"${name}" wurde gelöscht.`;
+    setTimeout(()=>document.getElementById("pkgMsg").textContent = "", 2000);
     loadPackages().then(loadBookings);
   }
 

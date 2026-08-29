@@ -56,6 +56,7 @@ export function renderFooter() {
         <a href="pakete.html">Pakete</a>
         <a href="galerie.html">Galerie</a>
         <a href="anfrage.html">Anfragen</a>
+        <a href="kontakt.html">Kontakt</a>
         <a href="meine-buchungen.html">Meine Buchungen</a>
         <a href="impressum.html">Impressum</a>
         <a href="agb.html">AGB</a>

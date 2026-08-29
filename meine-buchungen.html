@@ -23,7 +23,7 @@
 <script type="module">
   import { renderNav, renderFooter } from "./nav.js";
   import { db, auth } from "./firebase-init.js";
-  import { collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { collection, query, where, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
   renderNav("meine-buchungen.html");
@@ -37,6 +37,15 @@
     loadBookings(user.uid);
   });
 
+  async function getStripeLink(packageName){
+    const ids = ["basic","comfort","rundumsorglos"];
+    for(const id of ids){
+      const snap = await getDoc(doc(db,"packages",id));
+      if(snap.exists() && snap.data().name === packageName) return snap.data().stripeLink || "";
+    }
+    return "";
+  }
+
   async function loadBookings(uid){
     const list = document.getElementById("bookingsList");
     const snap = await getDocs(query(collection(db,"bookings"), where("uid","==",uid)));
@@ -47,20 +56,56 @@
     const rows = [];
     snap.forEach(d => rows.push(d.data()));
     rows.sort((a,b) => (a.eventDate||"").localeCompare(b.eventDate||""));
-    list.innerHTML = rows.map(b => `
-      <div class="booking-row">
-        <div>
-          <strong>${b.package||""}</strong> — ${b.eventDate||""}<br>
-          <span style="color:var(--cream-dim);font-size:.85rem">${b.location ? "Ort: "+b.location : ""} ${b.message ? " · "+b.message : ""}</span>
-        </div>
-        <div class="status-badge ${b.status}">${statusLabel(b.status)}</div>
-      </div>`).join("");
+
+    const htmlParts = [];
+    for(const b of rows){
+      const price = b.price || 0;
+      const paid = b.paymentStatus === "bezahlt" ? price : (b.paidAmount || 0);
+      const open = Math.max(price - paid, 0);
+      const canPay = b.bookingStatus === "bestätigt" && b.paymentStatus !== "bezahlt";
+      let payButton = "";
+      if(canPay){
+        const link = await getStripeLink(b.package);
+        payButton = link
+          ? `<a class="btn" style="margin-top:12px;display:inline-block" href="${link}" target="_blank">Jetzt bezahlen (${price.toFixed(2)} €)</a>`
+          : `<p style="color:var(--cream-dim);font-size:.85rem;margin-top:8px">Zahlungslink folgt in Kürze.</p>`;
+      }
+      htmlParts.push(`
+        <div class="booking-row" style="flex-direction:column;align-items:flex-start;">
+          <div style="display:flex;justify-content:space-between;width:100%;flex-wrap:wrap;gap:10px;">
+            <div>
+              <strong>${b.package||""}</strong> — ${b.eventDate||""}<br>
+              <span style="color:var(--cream-dim);font-size:.85rem">${b.location ? "Ort: "+b.location : ""} ${b.message ? " · "+b.message : ""}</span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <div class="status-badge ${b.bookingStatus||b.status}">Buchung: ${statusLabel(b.bookingStatus||b.status)}</div>
+              <div class="status-badge ${paymentClass(b.paymentStatus)}">Zahlung: ${paymentLabel(b.paymentStatus)}</div>
+            </div>
+          </div>
+          <div style="font-size:.85rem;color:var(--cream-dim);margin-top:10px">
+            Preis: ${price.toFixed(2)} € · Bezahlt: ${paid.toFixed(2)} € · Offen: ${open.toFixed(2)} €
+          </div>
+          ${payButton}
+        </div>`);
+    }
+    list.innerHTML = htmlParts.join("");
   }
 
   function statusLabel(status){
     if(status === "bestätigt") return "Bestätigt";
     if(status === "abgelehnt") return "Abgelehnt";
     return "Anfrage eingegangen";
+  }
+  function paymentLabel(status){
+    if(status === "bezahlt") return "Bezahlt ✅";
+    if(status === "fehlgeschlagen") return "Fehlgeschlagen";
+    if(status === "erstattet") return "Erstattet";
+    return "Offen";
+  }
+  function paymentClass(status){
+    if(status === "bezahlt") return "bestätigt";
+    if(status === "fehlgeschlagen") return "abgelehnt";
+    return "neu";
   }
 </script>
 </body>
