@@ -5,7 +5,7 @@ const NAV_LINKS = [
   { href: "index.html", label: "Startseite" },
   { href: "pakete.html", label: "Pakete" },
   { href: "galerie.html", label: "Galerie" },
-  { href: "anfrage.html", label: "Anfragen" },
+  { href: "anfrage.html", label: "Buchen" },
   { href: "meine-buchungen.html", label: "Meine Buchungen" }
 ];
 
@@ -55,7 +55,7 @@ export function renderFooter() {
         <a href="index.html">Startseite</a>
         <a href="pakete.html">Pakete</a>
         <a href="galerie.html">Galerie</a>
-        <a href="anfrage.html">Anfragen</a>
+        <a href="anfrage.html">Buchen</a>
         <a href="kontakt.html">Kontakt</a>
         <a href="meine-buchungen.html">Meine Buchungen</a>
         <a href="impressum.html">Impressum</a>

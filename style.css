@@ -1,15 +1,15 @@
 @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap');
 
 :root{
-  --bg:#f6efe0;             /* warmes Beige, Haupthintergrund */
-  --bg-footer:#e9dcc3;      /* dunklere Beige-Variante fürs Footer */
-  --bg-card:#fffaf0;        /* Creme für Karten */
-  --bg-card-2:#f2e6d3;      /* etwas dunkleres Creme für Eingabefelder */
-  --pink:#f28fa3;           /* sanftes Rosa */
-  --yellow:#f0c46a;         /* warmes Pastellgelb/Gold */
-  --mint:#8fbfa0;           /* dezentes Grün */
-  --cream:#3a2b1f;          /* jetzt: Haupt-Textfarbe (warmes Dunkelbraun) */
-  --cream-dim:#8a7462;      /* jetzt: gedämpfte Textfarbe */
+  --bg:#faf3e6;             /* helleres, warmes Beige */
+  --bg-footer:#ecdfc7;      /* dunklere Beige-Variante fürs Footer */
+  --bg-card:#fffcf5;        /* helles Creme für Karten */
+  --bg-card-2:#f6ecdb;      /* helleres Creme für Eingabefelder */
+  --pink:#f6acbb;           /* helleres, sanftes Rosa */
+  --yellow:#f3d28d;         /* helleres, warmes Pastellgold */
+  --mint:#a9d3ba;           /* helleres, dezentes Grün */
+  --cream:#3a2b1f;          /* Haupt-Textfarbe (warmes Dunkelbraun) */
+  --cream-dim:#8f7c6c;      /* gedämpfte Textfarbe */
 }
 *{box-sizing:border-box;}
 html{scroll-behavior:smooth;}
@@ -21,7 +21,7 @@ img{max-width:100%;}
 .stripe{height:8px;background:repeating-linear-gradient(135deg,var(--pink) 0 14px,var(--yellow) 14px 28px);}
 
 /* ---------- Navigation ---------- */
-.site-nav{position:sticky;top:0;z-index:200;background:#f6efe0e6;backdrop-filter:blur(8px);border-bottom:1px solid #3a2b1f14;}
+.site-nav{position:sticky;top:0;z-index:200;background:#faf3e6e6;backdrop-filter:blur(8px);border-bottom:1px solid #3a2b1f14;}
 .site-nav .inner{display:flex;justify-content:space-between;align-items:center;padding:16px 6vw;max-width:1300px;margin:0 auto;}
 .site-nav .logo{font-family:'Baloo 2';font-weight:800;font-size:1.3rem;text-decoration:none;white-space:nowrap;}
 .site-nav .logo span{color:var(--pink);}

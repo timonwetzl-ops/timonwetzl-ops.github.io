@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Anfrage — Candy Bar Vogtland</title>
+<title>Buchen — Candy Bar Vogtland</title>
 <link rel="stylesheet" href="style.css">
 <style>
   .selectedPkg{display:flex;gap:18px;align-items:center;background:var(--bg-card);border-radius:18px;padding:18px;margin-bottom:30px;border:1px solid #3a2b1f16;}
@@ -17,8 +17,8 @@
 
 <main>
   <section>
-    <div class="eyebrow">Anfrage</div>
-    <h2 class="section-title">Termin & Anfrage</h2>
+    <div class="eyebrow">Buchen</div>
+    <h2 class="section-title">Termin & Buchung</h2>
 
     <div id="selectedPkgBox"></div>
 
@@ -45,7 +45,7 @@
       <label>Nachricht / zusätzliche Wünsche</label>
       <textarea id="f_message" placeholder="Anzahl Gäste, besondere Wünsche…"></textarea>
 
-      <button class="btn block" type="submit">Anfrage senden</button>
+      <button class="btn block" type="submit">Buchung senden</button>
       <div id="formStatus"></div>
     </form>
   </section>
@@ -231,7 +231,7 @@
         paidAmount: 0,
         createdAt: serverTimestamp()
       });
-      status.textContent = "Danke! Deine Anfrage ist da — schau bald bei 'Meine Buchungen' vorbei.";
+      status.textContent = "Danke! Deine Buchung ist da — schau bald bei 'Meine Buchungen' vorbei.";
       status.style.color = "var(--mint)";
       setTimeout(()=>location.href="meine-buchungen.html", 1400);
     }catch(err){

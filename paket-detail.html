@@ -65,7 +65,7 @@
         <div class="detail-price">${p.price||""}</div>
         <p style="color:var(--cream-dim)">${p.description||""}</p>
         ${includes.length ? `<ul class="includes">${includes.map(i=>`<li>${i}</li>`).join("")}</ul>` : ""}
-        <a class="btn" href="anfrage.html?package=${encodeURIComponent(p.name||id)}">Jetzt anfragen</a>
+        <a class="btn" href="anfrage.html?package=${encodeURIComponent(p.name||id)}">Jetzt buchen</a>
       </div>`;
   }
   load();
