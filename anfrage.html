@@ -1,93 +1,410 @@
-async function loadBlockedDates() {
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buchen — Candy Bar Vogtland</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .selectedPkg{display:flex;gap:18px;align-items:center;background:var(--bg-card);border-radius:18px;padding:18px;margin-bottom:30px;border:1px solid #3a2b1f16;}
+  .selectedPkg img{width:100px;height:100px;object-fit:cover;border-radius:12px;flex-shrink:0;}
+  .selectedPkg .price{font-family:'JetBrains Mono',monospace;color:var(--yellow);font-weight:600;}
 
-  const snap = await getDocs(
-    collection(db, "bookings")
-  );
+  /* --- Zeitraum-Kalender --- */
+  :root{ --rangecolor:#5f9ea0; }
+  .cal-hint{color:var(--cream-dim);font-size:.85rem;margin:-4px 0 12px;}
+  .cal-legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.8rem;color:var(--cream-dim);margin:10px 0 4px;}
+  .cal-legend span{display:inline-flex;align-items:center;gap:6px;}
+  .cal-legend i{width:14px;height:14px;border-radius:4px;display:inline-block;flex-shrink:0;}
+  .cal-legend i.leg-full{background:var(--rangecolor);}
+  .cal-legend i.leg-half{background:linear-gradient(135deg,var(--bg-card) 50%,var(--rangecolor) 50%);border:1px solid var(--line);}
+  .cal-legend i.leg-taken{background:var(--bg-card);opacity:.4;border:1px solid var(--line);}
 
-  bookingBlockedDates = new Set();
-  internalBlockedDates = new Set();
+  .cal-grid button.full{background:var(--rangecolor);color:#fff;}
+  .cal-grid button.half-start{background:linear-gradient(135deg,var(--bg-card) 50%,var(--rangecolor) 50%);color:var(--cream);}
+  .cal-grid button.half-end{background:linear-gradient(135deg,var(--rangecolor) 50%,var(--bg-card) 50%);color:var(--cream);}
+  .cal-grid button.leadblocked{opacity:.35;}
 
-  // Zuerst nur die echten Veranstaltungstage sammeln
-  const eventDates = new Set();
+  .rangesList{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:6px;}
+  .rangesList li{display:flex;justify-content:space-between;align-items:center;background:var(--bg-card);border-radius:10px;padding:8px 12px;font-size:.88rem;}
+  .rangesList li button{background:none;border:none;color:var(--pink);cursor:pointer;font-size:.8rem;padding:0;}
 
-  snap.forEach((document) => {
+  .priceBox{display:flex;justify-content:space-between;align-items:baseline;background:var(--bg-card);border-radius:12px;padding:14px 18px;margin:18px 0;}
+  .priceBox .amount{font-family:'JetBrains Mono',monospace;font-size:1.3rem;color:var(--yellow);font-weight:700;}
+</style>
+</head>
+<body>
 
-    const booking = document.data();
+<nav class="site-nav" id="site-nav"></nav>
 
-    // Abgelehnte Buchungen ignorieren
-    if (
-      booking.bookingStatus === "abgelehnt" ||
-      booking.status === "abgelehnt"
-    ) {
+<main>
+  <section>
+    <div class="eyebrow">Buchen</div>
+    <h2 class="section-title">Termin & Buchung</h2>
+
+    <div id="selectedPkgBox"></div>
+
+    <form class="panel" id="bookingForm">
+      <label>Name</label>
+      <input type="text" id="f_name" required>
+
+      <label>E-Mail</label>
+      <input type="email" id="f_email" required>
+
+      <label>Telefonnummer</label>
+      <input type="tel" id="f_phone">
+
+      <label>Veranstaltungsort</label>
+      <input type="text" id="f_location" placeholder="Ort / Adresse">
+
+      <label>Zeitraum(e) der Ausleihe</label>
+      <div class="cal-hint">Ersten Tag antippen (Abholung), dann letzten Tag (Rückgabe). Es können mehrere Zeiträume gewählt werden — nochmal antippen hebt einen Zeitraum wieder auf.</div>
+      <div class="cal" id="calendar"></div>
+      <div class="cal-legend">
+        <span><i class="leg-half"></i> Abhol-/Rückgabetag (halber Tag)</span>
+        <span><i class="leg-full"></i> Ganzer Tag belegt</span>
+        <span><i class="leg-taken"></i> Nicht verfügbar</span>
+      </div>
+      <div class="cal-selected" id="calSelected">Noch kein Zeitraum ausgewählt.</div>
+      <ul class="rangesList" id="rangesList"></ul>
+
+      <label>Gewünschtes Paket</label>
+      <select id="f_package"></select>
+
+      <label>Nachricht / zusätzliche Wünsche</label>
+      <textarea id="f_message" placeholder="Anzahl Gäste, besondere Wünsche…"></textarea>
+
+      <div class="priceBox">
+        <span>Voraussichtlicher Preis</span>
+        <span class="amount" id="totalPriceDisplay">0,00 €</span>
+      </div>
+
+      <button class="btn block" type="submit">Buchung senden</button>
+      <div id="formStatus"></div>
+    </form>
+  </section>
+</main>
+
+<footer class="site-footer" id="site-footer"></footer>
+
+<script type="module">
+  import { renderNav, renderFooter } from "./nav.js";
+  import { db, auth, placeholderImg } from "./firebase-init.js";
+  import {
+    collection, getDocs, doc, getDoc, addDoc, serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  renderNav("anfrage.html");
+  renderFooter();
+
+  const PACKAGE_IDS = ["basic","comfort","rundumsorglos"];
+  const params = new URLSearchParams(location.search);
+  const preselected = params.get("package");
+  const LEAD_DAYS = 14; // Vorlaufzeit: die nächsten 2 Wochen ab heute sind immer gesperrt
+
+  let currentUser = null;
+  let blockedDates = new Set();   // durch bestehende Buchungen belegt (±1 Tag Puffer)
+  let leadBlocked = new Set();    // Vorlaufzeit-Sperre (heute + 13 weitere Tage)
+  let ranges = [];                // abgeschlossene Zeiträume [{start,end}]
+  let pendingStart = null;        // gerade angeklickter erster Tag, wartet auf Rückgabetag
+  let calMonth = new Date().getMonth();
+  let calYear = new Date().getFullYear();
+  let allPackagesData = [];
+
+  onAuthStateChanged(auth, (user)=>{
+    currentUser = user;
+    if(!user){
+      const q = new URLSearchParams();
+      q.set("next", "anfrage.html");
+      if(preselected) q.set("package", preselected);
+      location.href = "anmelden.html?" + q.toString();
+      return;
+    }
+    document.getElementById("f_email").value = user.email;
+    init();
+  });
+
+  async function init(){
+    await loadPackagesIntoSelect();
+    await showSelectedPkgBox();
+    computeLeadBlocked();
+    await loadBlockedDates();
+  }
+
+  function formatPrice(p){
+    return (p||"") + (p ? " / Tag" : "");
+  }
+
+  async function loadPackagesIntoSelect(){
+    const select = document.getElementById("f_package");
+    select.innerHTML = "";
+    for(const id of PACKAGE_IDS){
+      const snap = await getDoc(doc(db,"packages",id));
+      if(!snap.exists()) continue;
+      const p = {id, ...snap.data()};
+      p.priceNumeric = parseFloat((p.price||"").toString().replace(/[^\d.,]/g,"").replace(",",".")) || 0;
+      allPackagesData.push(p);
+      const opt = document.createElement("option");
+      opt.value = p.name;
+      opt.textContent = p.name;
+      if(preselected && preselected === p.name) opt.selected = true;
+      select.appendChild(opt);
+    }
+  }
+
+  function pkgBoxHtml(p){
+    const img = (p.images && p.images[0]) || placeholderImg(p.name,"#f28fa3");
+    return `
+      <div class="eyebrow">Dein ausgewähltes Paket</div>
+      <div class="selectedPkg">
+        <img src="${img}">
+        <div>
+          <h3 style="margin-bottom:4px">${p.name}</h3>
+          <div class="price">${formatPrice(p.price)}</div>
+          <p style="color:var(--cream-dim);font-size:.9rem;margin:4px 0 0">${p.description||""}</p>
+        </div>
+      </div>`;
+  }
+
+  async function showSelectedPkgBox(){
+    const box = document.getElementById("selectedPkgBox");
+    const name = preselected || (allPackagesData[0] && allPackagesData[0].name);
+    const p = allPackagesData.find(p => p.name === name);
+    if(!p){ box.innerHTML = ""; return; }
+    box.innerHTML = pkgBoxHtml(p);
+  }
+
+  document.getElementById("f_package").addEventListener("change", (e)=>{
+    const p = allPackagesData.find(p => p.name === e.target.value);
+    if(!p) return;
+    document.getElementById("selectedPkgBox").innerHTML = pkgBoxHtml(p);
+    updatePriceDisplay();
+  });
+
+  // ---------- Vorlaufzeit: nächste 2 Wochen ab heute immer gesperrt ----------
+  function computeLeadBlocked(){
+    leadBlocked = new Set();
+    const today = new Date(); today.setHours(0,0,0,0);
+    for(let i=0; i<LEAD_DAYS; i++){
+      const dt = new Date(today);
+      dt.setDate(dt.getDate() + i);
+      leadBlocked.add(dt.toISOString().slice(0,10));
+    }
+  }
+
+  // ---------- Kalender mit ±1 Tag Pufferblockierung ----------
+  async function loadBlockedDates(){
+    const snap = await getDocs(collection(db,"bookings"));
+    blockedDates = new Set();
+    snap.forEach(d=>{
+      const b = d.data();
+      if(b.bookingStatus === "abgelehnt" || b.status === "abgelehnt") return;
+      const dates = (b.ranges && b.ranges.length) ? b.ranges : (b.eventDate ? [{start:b.eventDate, end:b.eventDate}] : []);
+      dates.forEach(r=>{
+        if(!r.start || !r.end) return;
+        const start = new Date(r.start + "T00:00:00");
+        const end = new Date(r.end + "T00:00:00");
+        const from = new Date(start); from.setDate(from.getDate()-1);
+        const to = new Date(end); to.setDate(to.getDate()+1);
+        for(let dt=new Date(from); dt<=to; dt.setDate(dt.getDate()+1)){
+          blockedDates.add(dt.toISOString().slice(0,10));
+        }
+      });
+    });
+    renderCalendar();
+  }
+
+  function isBlocked(iso){
+    return blockedDates.has(iso) || leadBlocked.has(iso);
+  }
+
+  function rangeContainsBlocked(startIso, endIso){
+    const start = new Date(startIso + "T00:00:00");
+    const end = new Date(endIso + "T00:00:00");
+    for(let dt=new Date(start); dt<=end; dt.setDate(dt.getDate()+1)){
+      if(isBlocked(dt.toISOString().slice(0,10))) return true;
+    }
+    return false;
+  }
+
+  function renderCalendar(){
+    const cal = document.getElementById("calendar");
+    const first = new Date(calYear, calMonth, 1);
+    const startWeekday = (first.getDay()+6)%7;
+    const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+    const monthNames = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+    let html = `<div class="cal-head">
+      <button type="button" onclick="calNav(-1)">‹</button>
+      <div class="label">${monthNames[calMonth]} ${calYear}</div>
+      <button type="button" onclick="calNav(1)">›</button>
+    </div>
+    <div class="cal-grid">
+      ${["Mo","Di","Mi","Do","Fr","Sa","So"].map(d=>`<div class="dow">${d}</div>`).join("")}`;
+    for(let i=0;i<startWeekday;i++) html += `<div></div>`;
+    const today = new Date(); today.setHours(0,0,0,0);
+    for(let day=1; day<=daysInMonth; day++){
+      const dateObj = new Date(calYear, calMonth, day);
+      const iso = dateObj.toISOString().slice(0,10);
+      const isPast = dateObj < today;
+      const isTaken = blockedDates.has(iso);
+      const isLead = leadBlocked.has(iso) && !isTaken;
+      let cls = "";
+      const hardDisabled = isPast || isTaken || leadBlocked.has(iso);
+
+      if(iso === pendingStart){
+        cls = "pending";
+      } else {
+        const rStart = ranges.find(r => r.start === iso);
+        const rEnd = ranges.find(r => r.end === iso);
+        const rFull = ranges.find(r => iso > r.start && iso < r.end);
+        if(rStart) cls = "half-start";
+        else if(rEnd) cls = "half-end";
+        else if(rFull) cls = "full";
+      }
+      if(isLead) cls += " leadblocked";
+
+      const selectable = cls !== "" || !hardDisabled;
+      html += `<button type="button" ${selectable?"":"disabled"} class="${cls.trim()}" onclick="pickDate('${iso}')">${day}</button>`;
+    }
+    html += `</div>`;
+    cal.innerHTML = html;
+    renderRangesList();
+    updatePriceDisplay();
+  }
+
+  window.calNav = function(dir){
+    calMonth += dir;
+    if(calMonth<0){calMonth=11;calYear--;}
+    if(calMonth>11){calMonth=0;calYear++;}
+    renderCalendar();
+  }
+
+  window.pickDate = function(iso){
+    // Klick auf Tag, der bereits Teil eines abgeschlossenen Zeitraums ist -> Zeitraum aufheben
+    const existingIdx = ranges.findIndex(r => iso === r.start || iso === r.end || (iso > r.start && iso < r.end));
+    if(existingIdx !== -1){
+      ranges.splice(existingIdx, 1);
+      renderCalendar();
+      updateCalSelectedText();
       return;
     }
 
-    const ranges =
-      (booking.ranges && booking.ranges.length)
-        ? booking.ranges
-        : (
-            booking.eventDate
-              ? [{
-                  start: booking.eventDate,
-                  end: booking.eventDate
-                }]
-              : []
-          );
+    if(isBlocked(iso)) return;
 
-    ranges.forEach(range => {
-
-      if (!range.start || !range.end) {
+    if(pendingStart === null){
+      pendingStart = iso;
+    } else if(iso === pendingStart){
+      pendingStart = null;
+    } else if(iso < pendingStart){
+      pendingStart = iso;
+    } else {
+      if(rangeContainsBlocked(pendingStart, iso)){
+        document.getElementById("calSelected").textContent = "Dieser Zeitraum enthält nicht verfügbare Tage.";
+        document.getElementById("calSelected").style.color = "var(--pink)";
         return;
       }
+      ranges.push({start: pendingStart, end: iso});
+      pendingStart = null;
+    }
+    renderCalendar();
+    updateCalSelectedText();
+  }
 
-      let current = dateFromIso(range.start);
-      const end = dateFromIso(range.end);
+  function formatDe(iso){
+    const [y,m,d] = iso.split("-");
+    return `${d}.${m}.${y}`;
+  }
 
-      while (current <= end) {
+  function updateCalSelectedText(){
+    const el = document.getElementById("calSelected");
+    if(pendingStart){
+      el.textContent = `Abholung: ${formatDe(pendingStart)} — jetzt Rückgabetag antippen.`;
+      el.style.color = "var(--yellow)";
+    } else if(ranges.length === 0){
+      el.textContent = "Noch kein Zeitraum ausgewählt.";
+      el.style.color = "var(--cream-dim)";
+    } else {
+      el.textContent = `${ranges.length} Zeitraum${ranges.length>1?"e":""} ausgewählt.`;
+      el.style.color = "var(--mint)";
+    }
+  }
 
-        const iso = isoFromDate(current);
+  function renderRangesList(){
+    const list = document.getElementById("rangesList");
+    list.innerHTML = ranges.map((r,i) => `
+      <li>
+        <span>Abholung ${formatDe(r.start)} (nachmittags) — Rückgabe ${formatDe(r.end)} (vormittags)</span>
+        <button type="button" onclick="removeRange(${i})">Entfernen</button>
+      </li>`).join("");
+  }
 
-        eventDates.add(iso);
+  window.removeRange = function(i){
+    ranges.splice(i,1);
+    renderCalendar();
+    updateCalSelectedText();
+  }
 
-        current.setDate(
-          current.getDate() + 1
-        );
-      }
-    });
-  });
+  function rentalDaysFor(range){
+    const start = new Date(range.start + "T00:00:00");
+    const end = new Date(range.end + "T00:00:00");
+    const diff = Math.round((end-start) / 86400000);
+    return Math.max(diff, 1);
+  }
 
+  function totalRentalDays(){
+    return ranges.reduce((sum, r) => sum + rentalDaysFor(r), 0);
+  }
 
-  // Jetzt aus den echten Veranstaltungstagen
-  // die Sperrungen berechnen
-  eventDates.forEach(iso => {
+  function updatePriceDisplay(){
+    const pkgName = document.getElementById("f_package").value;
+    const p = allPackagesData.find(p => p.name === pkgName);
+    const daily = p ? p.priceNumeric : 0;
+    const total = daily * totalRentalDays();
+    document.getElementById("totalPriceDisplay").textContent = total.toFixed(2).replace(".",",") + " €";
+  }
 
-    // Der eigentliche Veranstaltungstag
-    bookingBlockedDates.add(iso);
-
-    // Abholtag
-    bookingBlockedDates.add(
-      addDays(iso, -1)
-    );
-
-    // Rückgabetag
-    bookingBlockedDates.add(
-      addDays(iso, 1)
-    );
-
-    // 7 Tage interne Sperre NACH dem Veranstaltungstag
-    for (
-      let i = 1;
-      i <= INTERNAL_BLOCK_DAYS;
-      i++
-    ) {
-      internalBlockedDates.add(
-        addDays(iso, i)
-      );
+  document.getElementById("bookingForm").addEventListener("submit", async (e)=>{
+    e.preventDefault();
+    if(ranges.length === 0){
+      document.getElementById("calSelected").textContent = "Bitte wähl zuerst mindestens einen Zeitraum aus.";
+      document.getElementById("calSelected").style.color = "var(--pink)";
+      return;
+    }
+    const status = document.getElementById("formStatus");
+    status.textContent = "Wird gesendet…";
+    status.style.color = "var(--cream-dim)";
+    const pkgName = document.getElementById("f_package").value;
+    const p = allPackagesData.find(p => p.name === pkgName);
+    const daily = p ? p.priceNumeric : 0;
+    const total = daily * totalRentalDays();
+    const eventDateSummary = ranges.map(r => `${formatDe(r.start)}–${formatDe(r.end)}`).join(", ");
+    try{
+      await addDoc(collection(db,"bookings"),{
+        uid: currentUser.uid,
+        name: document.getElementById("f_name").value,
+        email: document.getElementById("f_email").value,
+        phone: document.getElementById("f_phone").value,
+        location: document.getElementById("f_location").value,
+        eventDate: eventDateSummary,
+        ranges: ranges,
+        package: pkgName,
+        price: total,
+        message: document.getElementById("f_message").value,
+        bookingStatus: "neu",
+        paymentStatus: "offen",
+        paidAmount: 0,
+        createdAt: serverTimestamp()
+      });
+      status.textContent = "Danke! Deine Buchung ist da — schau bald bei 'Meine Buchungen' vorbei.";
+      status.style.color = "var(--mint)";
+      setTimeout(()=>location.href="meine-buchungen.html", 1400);
+    }catch(err){
+      status.textContent = "Ups, das hat nicht geklappt. Versuch's nochmal.";
+      status.style.color = "var(--pink)";
+      console.error(err);
     }
   });
-
-
-  rebuildBlockedDates();
-
-  renderCalendar();
-}
+</script>
+</body>
+</html>
