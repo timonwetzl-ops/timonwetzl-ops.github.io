@@ -19,8 +19,8 @@ export async function uploadFile(file, pathPrefix) {
 export function placeholderImg(name, color) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400">
     <rect width="600" height="400" fill="${color}"/>
-    <text x="50%" y="50%" font-family="sans-serif" font-size="34" fill="#1b1023"
-      text-anchor="middle" dominant-baseline="middle" font-weight="700">${name}</text>
+    <text x="50%" y="50%" font-family="sans-serif" font-size="30" fill="#2f2418"
+      text-anchor="middle" dominant-baseline="middle" font-weight="600">${name}</text>
   </svg>`;
   return "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svg)));
 }
