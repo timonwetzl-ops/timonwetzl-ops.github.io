@@ -6,14 +6,27 @@
 <title>Paket — Candy Bar Vogtland</title>
 <link rel="stylesheet" href="style.css">
 <style>
-  .detail-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:40px;align-items:start;}
+  .detail-grid{display:grid;grid-template-columns:1fr 1.1fr;gap:56px;align-items:start;}
   @media (max-width:840px){.detail-grid{grid-template-columns:1fr;}}
-  .detail-img{border-radius:22px;overflow:hidden;aspect-ratio:4/3;background:var(--bg-card);border:1px solid #3a2b1f16;}
+
+  .detail-img-wrap{position:sticky;top:90px;}
+  .detail-img{border-radius:8px;overflow:hidden;aspect-ratio:4/5;background:var(--bg-card);}
   .detail-img img{width:100%;height:100%;object-fit:cover;display:block;}
-  .detail-price{font-family:'JetBrains Mono',monospace;color:var(--yellow);background:var(--bg-card);display:inline-block;padding:8px 18px;border-radius:100px;font-size:1.3rem;margin:14px 0;}
-  .includes{margin-top:20px;padding:0;list-style:none;}
-  .includes li{padding:10px 0;border-bottom:1px solid #3a2b1f12;font-size:.95rem;}
-  .includes li::before{content:"✓ ";color:var(--mint);font-weight:700;}
+  @media (max-width:840px){
+    .detail-img-wrap{position:static;}
+    .detail-img{aspect-ratio:4/3;}
+  }
+
+  .detail-price{font-family:'JetBrains Mono',monospace;color:var(--cream-dim);font-size:1.3rem;margin:10px 0 18px;}
+  .detail-note{color:var(--cream-dim);font-size:.9rem;margin-top:18px;padding-top:16px;border-top:1px solid var(--line);}
+
+  .includes{margin:22px 0;padding:0;list-style:none;}
+  .includes li{padding:9px 0;font-size:.94rem;display:flex;gap:10px;align-items:flex-start;}
+  .includes li .check{color:var(--mint);font-weight:700;flex-shrink:0;}
+
+  .extras{margin-top:6px;padding-left:22px;color:var(--cream-dim);font-size:.85rem;}
+  .extras li{padding:3px 0;}
+  .extras-title{font-size:.85rem;font-weight:600;margin-top:18px;margin-bottom:6px;}
 </style>
 </head>
 <body>
@@ -54,17 +67,22 @@
       return;
     }
     const p = snap.data();
-    const images = (p.images && p.images.length) ? p.images : [placeholderImg(p.name||id,"#f28fa3")];
+    const images = (p.images && p.images.length) ? p.images : [placeholderImg(p.name||id,"#e8789e")];
     const includes = (p.includes || []).filter(Boolean);
+    const extras = (p.extras || []).filter(Boolean);
 
     content.innerHTML = `
-      <div class="detail-img"><img src="${images[0]}"></div>
+      <div class="detail-img-wrap">
+        <div class="detail-img"><img src="${images[0]}"></div>
+      </div>
       <div>
         <div class="eyebrow">Paket</div>
         <h1 class="section-title" style="margin-bottom:0">${p.name||""}</h1>
         <div class="detail-price">${p.price||""}</div>
         <p style="color:var(--cream-dim)">${p.description||""}</p>
-        ${includes.length ? `<ul class="includes">${includes.map(i=>`<li>${i}</li>`).join("")}</ul>` : ""}
+        ${includes.length ? `<ul class="includes">${includes.map(i=>`<li><span class="check">✓</span><span>${i}</span></li>`).join("")}</ul>` : ""}
+        ${extras.length ? `<div class="extras-title">${p.extrasTitle || "Details"}</div><ul class="extras">${extras.map(i=>`<li>${i}</li>`).join("")}</ul>` : ""}
+        ${p.note ? `<div class="detail-note">${p.note}</div>` : ""}
         <a class="btn" href="anfrage.html?package=${encodeURIComponent(p.name||id)}">Jetzt buchen</a>
       </div>`;
   }

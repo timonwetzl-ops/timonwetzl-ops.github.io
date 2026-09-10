@@ -30,7 +30,6 @@
   renderNav("pakete.html");
   renderFooter();
 
-  // Feste Reihenfolge, feste IDs -> es können nie mehr als diese 3 erscheinen
   const PACKAGE_IDS = ["basic", "comfort", "rundumsorglos"];
 
   async function loadPackages(){
@@ -40,15 +39,14 @@
       const snap = await getDoc(doc(db,"packages",id));
       if(!snap.exists()) continue;
       const p = snap.data();
-      const img = (p.images && p.images[0]) || placeholderImg(p.name||id,"#ff3d68");
+      const img = (p.images && p.images[0]) || placeholderImg(p.name||id,"#e8789e");
       grid.innerHTML += `
         <a class="pkg-card" href="paket-detail.html?id=${id}">
-          <img src="${img}">
-          <div class="body">
-            <h3>${p.name||""}</h3>
-            <div class="price">${p.price||""}</div>
-            <p>${p.description||""}</p>
-          </div>
+          <div class="thumb"><img src="${img}"></div>
+          <div class="accent"></div>
+          <h3>${p.name||""}</h3>
+          <div class="price">${p.price||""}</div>
+          <p>${p.description||""}</p>
         </a>`;
     }
   }
