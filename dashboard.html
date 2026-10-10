@@ -144,6 +144,7 @@
 
 <script type="module">
   import { db, auth, storage, uploadFile, DASHBOARD_CODE, ADMIN_EMAIL } from "./firebase-init.js";
+  import { getPackage, PACKAGE_IDS, DEFAULT_PACKAGES } from "./packages-default.js";
   import {
     collection, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -151,12 +152,6 @@
     signInWithEmailAndPassword, onAuthStateChanged
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-  const PACKAGE_IDS = ["basic","comfort","rundumsorglos"];
-  const PACKAGE_DEFAULTS = {
-    basic: {name:"Basic", price:"89 €", description:"Candybar-Gestell zum Selbstbefüllen – für alle, die selbst dekorieren und befüllen möchten.", includes:["Gestell zum Selbstbefüllen","Abholung bei uns"]},
-    comfort: {name:"Comfort", price:"149 €", description:"Gestell inklusive Gläsern und passender Deko – du bringst nur noch deine eigenen Süßigkeiten mit.", includes:["Gestell inkl. Gläser","Passende Deko","Abholung bei uns"]},
-    rundumsorglos: {name:"Rundum sorglos", price:"229 €", description:"Alles komplett – Gestell, Gläser, Deko und bereits befüllt mit Süßigkeiten.", includes:["Gestell inkl. Gläser","Deko","Bereits befüllt mit Süßigkeiten","Abholung bei uns"]}
-  };
 
   let packagePrices = {};
 
@@ -210,10 +205,12 @@
   }
 
   async function ensurePackages(){
-    const snap = await getDocs(collection(db,"packages"));
-    if(!snap.empty) return; // schon mal befüllt -> nichts automatisch nachlegen (sonst kommt Gelöschtes zurück)
     for(const id of PACKAGE_IDS){
-      await setDoc(doc(db,"packages",id), {...PACKAGE_DEFAULTS[id], images:[], stripeLink:""});
+      const ref_ = doc(db,"packages",id);
+      const snap = await getDoc(ref_);
+      if(!snap.exists()){
+        await setDoc(ref_, {...DEFAULT_PACKAGES[id], stripeLink:""});
+      }
     }
   }
 
@@ -343,9 +340,7 @@
     list.innerHTML = "";
     packagePrices = {};
     for(const id of PACKAGE_IDS){
-      const snap = await getDoc(doc(db,"packages",id));
-      if(!snap.exists()) continue;
-      const p = snap.data();
+      const p = await getPackage(id);
       const numeric = parseFloat((p.price||"").toString().replace(/[^\d.,]/g,"").replace(",",".")) || 0;
       packagePrices[p.name] = numeric;
       const images = p.images || [];
@@ -370,7 +365,7 @@
             <label class="fileBtn">📷 Bild hinzufügen
               <input type="file" accept="image/*" onchange="handlePackageUpload(event,'${id}')">
             </label>
-            <button class="danger" onclick="deletePackage('${id}', '${p.name||id}')">Löschen</button>
+            <button class="danger" onclick="deletePackage('${id}', '${p.name||id}')">Zurücksetzen</button>
           </div>
           <div class="imgList" id="pkgImgs-${id}">
             ${images.map((url,i)=>`
@@ -394,9 +389,10 @@
   }
 
   window.deletePackage = async function(id, name){
-    if(!confirm(`Möchtest du "${name}" wirklich löschen?`)) return;
+    if(!confirm(`Möchtest du "${name}" auf die Startwerte zurücksetzen? Deine Änderungen an diesem Paket gehen verloren.`)) return;
     await deleteDoc(doc(db,"packages",id));
-    document.getElementById("pkgMsg").textContent = `"${name}" wurde gelöscht.`;
+    await setDoc(doc(db,"packages",id), {...DEFAULT_PACKAGES[id], stripeLink:""});
+    document.getElementById("pkgMsg").textContent = `"${name}" wurde zurückgesetzt.`;
     setTimeout(()=>document.getElementById("pkgMsg").textContent = "", 2000);
     loadPackages().then(loadBookings);
   }

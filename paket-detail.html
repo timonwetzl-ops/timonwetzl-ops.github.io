@@ -46,6 +46,7 @@
 <script type="module">
   import { renderNav, renderFooter } from "./nav.js";
   import { db, placeholderImg } from "./firebase-init.js";
+  import { getPackage, PACKAGE_IDS } from "./packages-default.js";
   import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   renderNav("pakete.html");
@@ -53,7 +54,7 @@
 
   const params = new URLSearchParams(location.search);
   const id = params.get("id");
-  const VALID_IDS = ["basic","comfort","rundumsorglos"];
+  const VALID_IDS = PACKAGE_IDS;
 
   async function load(){
     const content = document.getElementById("detailContent");
@@ -61,12 +62,7 @@
       content.innerHTML = `<p class="center-note">Dieses Paket wurde nicht gefunden. <a href="pakete.html" style="color:var(--mint)">Zurück zu den Paketen</a></p>`;
       return;
     }
-    const snap = await getDoc(doc(db,"packages",id));
-    if(!snap.exists()){
-      content.innerHTML = `<p class="center-note">Dieses Paket wurde nicht gefunden. <a href="pakete.html" style="color:var(--mint)">Zurück zu den Paketen</a></p>`;
-      return;
-    }
-    const p = snap.data();
+    const p = await getPackage(id);
     const images = (p.images && p.images.length) ? p.images : [placeholderImg(p.name||id,"#e8789e")];
     const includes = (p.includes || []).filter(Boolean);
     const extras = (p.extras || []).filter(Boolean);

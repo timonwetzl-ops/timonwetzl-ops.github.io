@@ -29,7 +29,14 @@
   renderFooter();
 
   async function load(){
-    const snap = await getDoc(doc(db,"config","legal"));
+    let snap;
+    try{
+      snap = await getDoc(doc(db,"config","legal"));
+    }catch(e){
+      console.error(e);
+      document.getElementById("legalText").textContent = "Der Text konnte gerade nicht geladen werden. Bitte versuche es später noch einmal.";
+      return;
+    }
     const text = snap.exists() && snap.data().impressum
       ? snap.data().impressum
       : "Hier steht bald das Impressum von Candy Bar Vogtland.\n\nDieser Platzhaltertext kann im Dashboard unter 'Rechtliche Seiten' bearbeitet werden.";

@@ -24,23 +24,20 @@
 <script type="module">
   import { renderNav, renderFooter } from "./nav.js";
   import { db, placeholderImg } from "./firebase-init.js";
+  import { getAllPackages } from "./packages-default.js";
   import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   renderNav("pakete.html");
   renderFooter();
 
-  const PACKAGE_IDS = ["basic", "comfort", "rundumsorglos"];
-
   async function loadPackages(){
     const grid = document.getElementById("packagesGrid");
     grid.innerHTML = "";
-    for(const id of PACKAGE_IDS){
-      const snap = await getDoc(doc(db,"packages",id));
-      if(!snap.exists()) continue;
-      const p = snap.data();
-      const img = (p.images && p.images[0]) || placeholderImg(p.name||id,"#e8789e");
+    const packages = await getAllPackages();
+    for(const p of packages){
+      const img = (p.images && p.images[0]) || placeholderImg(p.name||p.id,"#e8789e");
       grid.innerHTML += `
-        <a class="pkg-card" href="paket-detail.html?id=${id}">
+        <a class="pkg-card" href="paket-detail.html?id=${p.id}">
           <div class="thumb"><img src="${img}"></div>
           <div class="accent"></div>
           <h3>${p.name||""}</h3>

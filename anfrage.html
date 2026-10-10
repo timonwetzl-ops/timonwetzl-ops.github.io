@@ -62,6 +62,7 @@
 <script type="module">
   import { renderNav, renderFooter } from "./nav.js";
   import { db, auth, placeholderImg } from "./firebase-init.js";
+  import { getAllPackages } from "./packages-default.js";
   import {
     collection, getDocs, doc, getDoc, setDoc, serverTimestamp
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -70,7 +71,6 @@
   renderNav("anfrage.html");
   renderFooter();
 
-  const PACKAGE_IDS = ["basic","comfort","rundumsorglos"];
   const LEAD_DAYS = 14; // die nächsten 2 Wochen sind immer belegt
   const params = new URLSearchParams(location.search);
   const preselected = params.get("package");
@@ -122,11 +122,8 @@
   async function loadPackages(){
     const select = document.getElementById("f_package");
     select.innerHTML = "";
-    for(const id of PACKAGE_IDS){
-      const snap = await getDoc(doc(db,"packages",id));
-      if(!snap.exists()) continue;
-      const p = {id, ...snap.data()};
-      allPackagesData.push(p);
+    allPackagesData = await getAllPackages();
+    for(const p of allPackagesData){
       const opt = document.createElement("option");
       opt.value = p.name;
       opt.textContent = p.name;
