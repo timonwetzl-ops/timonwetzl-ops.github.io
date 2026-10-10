@@ -78,7 +78,7 @@
       <div>
         <div class="eyebrow">Paket</div>
         <h1 class="section-title" style="margin-bottom:0">${p.name||""}</h1>
-        <div class="detail-price">${p.price||""}</div>
+        <div class="detail-price">${p.price||""} <small style="font-size:.65em">pro Tag</small></div>
         <p style="color:var(--cream-dim)">${p.description||""}</p>
         ${includes.length ? `<ul class="includes">${includes.map(i=>`<li><span class="check">✓</span><span>${i}</span></li>`).join("")}</ul>` : ""}
         ${extras.length ? `<div class="extras-title">${p.extrasTitle || "Details"}</div><ul class="extras">${extras.map(i=>`<li>${i}</li>`).join("")}</ul>` : ""}
