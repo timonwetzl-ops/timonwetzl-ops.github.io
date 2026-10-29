@@ -146,14 +146,26 @@
   import { db, auth, storage, uploadFile, DASHBOARD_CODE, ADMIN_EMAIL } from "./firebase-init.js";
   import { getPackage, PACKAGE_IDS, DEFAULT_PACKAGES } from "./packages-default.js";
   import {
-    collection, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc
+    collection, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc, runTransaction, serverTimestamp
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { createStore, BookingError } from "./booking-store.js";
+  import { niceDate } from "./booking-logic.js";
   import {
     signInWithEmailAndPassword, onAuthStateChanged
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 
   let packagePrices = {};
+  const store = createStore({ doc, collection, getDocs, setDoc, runTransaction, serverTimestamp }, db);
+
+  // Anzeige des Veranstaltungszeitraums (neue Buchungen) bzw. des bisherigen Datums (ältere Buchungen)
+  function bookingDateLabel(b){
+    if(b.eventStart && b.eventEnd){
+      const range = b.eventStart === b.eventEnd ? niceDate(b.eventStart) : `${niceDate(b.eventStart)} – ${niceDate(b.eventEnd)}`;
+      return `${range}<br><span style="color:var(--cream-dim);font-size:.75rem">${b.eventDays || ""} ${b.eventDays===1?"Tag":"Tage"} · Abholung ${niceDate(b.pickupDate)}, Rückgabe ${niceDate(b.returnDate)}</span>`;
+    }
+    return b.eventDate || "";
+  }
 
   window.checkCode = function(){
     const val = document.getElementById("codeInput").value;
@@ -266,7 +278,7 @@
       }
       body.innerHTML += `
         <tr>
-          <td>${b.eventDate || ""}</td>
+          <td>${bookingDateLabel(b)}</td>
           <td>${b.name || ""}</td>
           <td>${b.package || ""}</td>
           <td>${b.email || ""}<br>${b.phone || ""}</td>
@@ -294,8 +306,24 @@
     document.getElementById("statRevenue").textContent = revenue.toFixed(2) + " €";
   }
 
+  // "abgelehnt" gibt den Termin im Kalender wieder frei; wieder aktivieren reserviert ihn erneut (nur wenn noch frei).
   window.updateBookingStatus = async function(id, bookingStatus){
-    await updateDoc(doc(db,"bookings",id), {bookingStatus});
+    const ref_ = doc(db,"bookings",id);
+    const b = (await getDoc(ref_)).data();
+    const prev = b.bookingStatus || b.status || "neu";
+    try{
+      if(bookingStatus === "abgelehnt" && prev !== "abgelehnt"){
+        try{ await store.release(id, b); }
+        catch(e){ console.error(e); alert("Der Status wird gespeichert, aber der Termin konnte im Kalender nicht freigegeben werden: " + e.message); }
+      } else if(prev === "abgelehnt" && bookingStatus !== "abgelehnt"){
+        await store.reactivate(id, b);
+      }
+    }catch(e){
+      alert(e instanceof BookingError ? e.message : "Fehler: " + e.message);
+      loadBookings();
+      return;
+    }
+    await updateDoc(ref_, {bookingStatus});
     loadBookings();
   }
   window.updatePaymentStatus = async function(id, paymentStatus){
@@ -349,7 +377,7 @@
         <div class="card" data-id="${id}">
           <div class="row">
             <input type="text" value="${p.name||""}" placeholder="Name" class="pName">
-            <input type="text" value="${p.price||""}" placeholder="Preis" class="pPrice">
+            <input type="text" value="${p.price||""}" placeholder="Preis" class="pPrice" readonly title="Der Preis für den 1. Veranstaltungstag ist fest vorgegeben (booking-logic.js)">
           </div>
           <div class="row">
             <input type="text" value="${p.description||""}" placeholder="Beschreibung" class="pDesc" style="flex:3">
@@ -378,11 +406,10 @@
   window.savePackage = async function(id, btn){
     const card = btn.closest(".card");
     const name = card.querySelector(".pName").value;
-    const price = card.querySelector(".pPrice").value;
     const description = card.querySelector(".pDesc").value;
     const includes = card.querySelector(".pIncludes").value.split("\n").map(s=>s.trim()).filter(Boolean);
     const stripeLink = card.querySelector(".pStripe").value.trim();
-    await updateDoc(doc(db,"packages",id), {name, price, description, includes, stripeLink});
+    await updateDoc(doc(db,"packages",id), {name, description, includes, stripeLink});
     document.getElementById("pkgMsg").textContent = "Gespeichert ✓";
     setTimeout(()=>document.getElementById("pkgMsg").textContent = "", 1500);
     loadPackages().then(loadBookings);

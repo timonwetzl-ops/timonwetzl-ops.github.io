@@ -74,7 +74,7 @@
         <div class="booking-row" style="flex-direction:column;align-items:flex-start;">
           <div style="display:flex;justify-content:space-between;width:100%;flex-wrap:wrap;gap:10px;">
             <div>
-              <strong>${b.package||""}</strong> — ${b.eventDate||""}<br>
+              <strong>${b.package||""}</strong> — ${dateLabel(b)}<br>
               <span style="color:var(--cream-dim);font-size:.85rem">${b.location ? "Ort: "+b.location : ""} ${b.message ? " · "+b.message : ""}</span>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -91,6 +91,13 @@
     list.innerHTML = htmlParts.join("");
   }
 
+  const nice = iso => iso.split("-").reverse().join(".");
+  function dateLabel(b){
+    if(b.eventStart && b.eventEnd){
+      return b.eventStart === b.eventEnd ? nice(b.eventStart) : `${nice(b.eventStart)} – ${nice(b.eventEnd)}`;
+    }
+    return b.eventDate || "";
+  }
   function statusLabel(status){
     if(status === "bestätigt") return "Bestätigt";
     if(status === "abgelehnt") return "Abgelehnt";

@@ -1,5 +1,6 @@
 import { db } from "./firebase-init.js";
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { PACKAGE_BASE_PRICE } from "./booking-logic.js";
 
 // Die drei Pakete – immer vorhanden, genau einmal.
 export const PACKAGE_IDS = ["basic", "comfort", "rundumsorglos"];
@@ -26,7 +27,7 @@ export const DEFAULT_PACKAGES = {
   },
   comfort: {
     name: "Comfort",
-    price: "149 €",
+    price: "129 €",
     description: "Im Comfort-Paket ist unsere Candybar mit folgender Ausstattung enthalten:",
     includes: [...AUSSTATTUNG, ABHOLUNG, KAUTION],
     note: "Die Süßigkeitenfüllung ist im Comfort-Paket nicht enthalten – die gibt's optional im Rundum-Sorglos-Paket dazu.",
@@ -81,6 +82,9 @@ export async function getPackage(id) {
   } catch (e) {
     console.warn("Pakete konnten nicht aus der Datenbank geladen werden – Startwerte werden gezeigt.", e);
   }
+  // Der Preis für den ersten Veranstaltungstag ist verbindlich (booking-logic.js) und wird nie
+  // durch einen alten, in der Datenbank gespeicherten Preis überschrieben.
+  out.price = `${PACKAGE_BASE_PRICE[id]} €`;
   return out;
 }
 
