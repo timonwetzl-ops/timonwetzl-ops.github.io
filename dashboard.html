@@ -145,27 +145,22 @@
 <script type="module">
   import { db, auth, storage, uploadFile, DASHBOARD_CODE, ADMIN_EMAIL } from "./firebase-init.js";
   import { getPackage, PACKAGE_IDS, DEFAULT_PACKAGES } from "./packages-default.js";
+  import { nice, EXTRA_DAY_PRICE } from "./booking-logic.js";
+
+  function dateText(b){
+    if(b.firstEventDay && b.lastEventDay && b.lastEventDay !== b.firstEventDay) return `${nice(b.firstEventDay)} – ${nice(b.lastEventDay)}<br><span style="font-size:.75rem;color:var(--cream-dim)">${b.eventDays} Tage · Abholung ${nice(b.startDate)} · Rückgabe ${nice(b.endDate)}</span>`;
+    if(b.firstEventDay) return `${nice(b.firstEventDay)}<br><span style="font-size:.75rem;color:var(--cream-dim)">Abholung ${nice(b.startDate)} · Rückgabe ${nice(b.endDate)}</span>`;
+    return b.eventDate || "";
+  }
   import {
-    collection, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc, runTransaction, serverTimestamp
+    collection, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-  import { createStore, BookingError } from "./booking-store.js";
-  import { niceDate } from "./booking-logic.js";
   import {
     signInWithEmailAndPassword, onAuthStateChanged
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 
   let packagePrices = {};
-  const store = createStore({ doc, collection, getDocs, setDoc, runTransaction, serverTimestamp }, db);
-
-  // Anzeige des Veranstaltungszeitraums (neue Buchungen) bzw. des bisherigen Datums (ältere Buchungen)
-  function bookingDateLabel(b){
-    if(b.eventStart && b.eventEnd){
-      const range = b.eventStart === b.eventEnd ? niceDate(b.eventStart) : `${niceDate(b.eventStart)} – ${niceDate(b.eventEnd)}`;
-      return `${range}<br><span style="color:var(--cream-dim);font-size:.75rem">${b.eventDays || ""} ${b.eventDays===1?"Tag":"Tage"} · Abholung ${niceDate(b.pickupDate)}, Rückgabe ${niceDate(b.returnDate)}</span>`;
-    }
-    return b.eventDate || "";
-  }
 
   window.checkCode = function(){
     const val = document.getElementById("codeInput").value;
@@ -278,7 +273,7 @@
       }
       body.innerHTML += `
         <tr>
-          <td>${bookingDateLabel(b)}</td>
+          <td>${dateText(b)}</td>
           <td>${b.name || ""}</td>
           <td>${b.package || ""}</td>
           <td>${b.email || ""}<br>${b.phone || ""}</td>
@@ -298,7 +293,7 @@
               <option value="erstattet" ${paymentStatus==="erstattet"?"selected":""}>Erstattet</option>
             </select>
           </td>
-          <td style="font-size:.8rem">${price.toFixed(2)} € / ${paid.toFixed(2)} € / ${open.toFixed(2)} €</td>
+          <td style="font-size:.8rem">${price.toFixed(2)} € / ${paid.toFixed(2)} € / ${open.toFixed(2)} €${priceWarning(b, price)}</td>
         </tr>`;
     });
     document.getElementById("statTotal").textContent = total;
@@ -306,24 +301,26 @@
     document.getElementById("statRevenue").textContent = revenue.toFixed(2) + " €";
   }
 
-  // "abgelehnt" gibt den Termin im Kalender wieder frei; wieder aktivieren reserviert ihn erneut (nur wenn noch frei).
+  // Kontrolle im Dashboard: Paketpreis + (Tage - 1) x 89 € muss zum gespeicherten Preis passen
+  function priceWarning(b, price){
+    if(!b.eventDays || packagePrices[b.package] === undefined) return "";
+    const expected = packagePrices[b.package] + (b.eventDays - 1) * EXTRA_DAY_PRICE;
+    if(Math.abs(expected - price) < 0.005) return "";
+    return `<br><span style="color:#c23b52">⚠ weicht vom aktuellen Paketpreis ab (erwartet ${expected.toFixed(2)} €)</span>`;
+  }
+
   window.updateBookingStatus = async function(id, bookingStatus){
-    const ref_ = doc(db,"bookings",id);
-    const b = (await getDoc(ref_)).data();
-    const prev = b.bookingStatus || b.status || "neu";
+    await updateDoc(doc(db,"bookings",id), {bookingStatus});
+    // Kalender synchron halten: abgelehnt = Zeitraum wieder frei, sonst wieder gesperrt
     try{
-      if(bookingStatus === "abgelehnt" && prev !== "abgelehnt"){
-        try{ await store.release(id, b); }
-        catch(e){ console.error(e); alert("Der Status wird gespeichert, aber der Termin konnte im Kalender nicht freigegeben werden: " + e.message); }
-      } else if(prev === "abgelehnt" && bookingStatus !== "abgelehnt"){
-        await store.reactivate(id, b);
+      if(bookingStatus === "abgelehnt"){
+        await deleteDoc(doc(db,"blocked",id));
+      } else {
+        const snap = await getDoc(doc(db,"bookings",id));
+        const b = snap.data();
+        if(b && b.startDate) await setDoc(doc(db,"blocked",id), { startDate: b.startDate, endDate: b.endDate || b.startDate, uid: b.uid || "" });
       }
-    }catch(e){
-      alert(e instanceof BookingError ? e.message : "Fehler: " + e.message);
-      loadBookings();
-      return;
-    }
-    await updateDoc(ref_, {bookingStatus});
+    }catch(e){ console.warn("Sperrliste konnte nicht angepasst werden", e); }
     loadBookings();
   }
   window.updatePaymentStatus = async function(id, paymentStatus){
@@ -377,7 +374,7 @@
         <div class="card" data-id="${id}">
           <div class="row">
             <input type="text" value="${p.name||""}" placeholder="Name" class="pName">
-            <input type="text" value="${p.price||""}" placeholder="Preis" class="pPrice" readonly title="Der Preis für den 1. Veranstaltungstag ist fest vorgegeben (booking-logic.js)">
+            <input type="text" value="${p.price||""}" placeholder="Preis" class="pPrice">
           </div>
           <div class="row">
             <input type="text" value="${p.description||""}" placeholder="Beschreibung" class="pDesc" style="flex:3">
@@ -406,10 +403,11 @@
   window.savePackage = async function(id, btn){
     const card = btn.closest(".card");
     const name = card.querySelector(".pName").value;
+    const price = card.querySelector(".pPrice").value;
     const description = card.querySelector(".pDesc").value;
     const includes = card.querySelector(".pIncludes").value.split("\n").map(s=>s.trim()).filter(Boolean);
     const stripeLink = card.querySelector(".pStripe").value.trim();
-    await updateDoc(doc(db,"packages",id), {name, description, includes, stripeLink});
+    await updateDoc(doc(db,"packages",id), {name, price, description, includes, stripeLink});
     document.getElementById("pkgMsg").textContent = "Gespeichert ✓";
     setTimeout(()=>document.getElementById("pkgMsg").textContent = "", 1500);
     loadPackages().then(loadBookings);

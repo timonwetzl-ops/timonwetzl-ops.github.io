@@ -143,29 +143,9 @@ footer.site-footer .bottom{max-width:1200px;margin:30px auto 0;padding-top:20px;
 .price-box strong{font-family:'Baloo 2',sans-serif;font-size:1.3rem;}
 .price small{font-size:.75em;opacity:.8;}
 
-/* ---------- Kalender: Veranstaltungszeitraum mit halben Tagen ---------- */
-.cal-grid button.ev{background:var(--lavender);color:#fff;font-weight:700;opacity:1;}
-.cal-grid button.hd{background:linear-gradient(to bottom right,var(--am,var(--bg-card)) 50%,var(--pm,var(--bg-card)) 50%);}
-.cal-grid button.hd:disabled{opacity:.8;}
-.cal-grid button.hd.mine{font-weight:700;opacity:1;}
-.cal-grid button.na{background:var(--bg-card-2);text-decoration:line-through;}
-.cal-grid button.na:disabled{opacity:.55;}
-.cal-grid button.full:disabled{opacity:.55;}
-.cal-legend .l-event::before{background:var(--lavender);}
-.cal-legend .l-pick::before{background:linear-gradient(to bottom right,var(--bg-card) 50%,var(--mint) 50%);border:1px solid var(--line);}
-.cal-legend .l-ret::before{background:linear-gradient(to bottom right,var(--mint) 50%,var(--bg-card) 50%);border:1px solid var(--line);}
-.cal-legend .l-na::before{background:var(--bg-card-2);border:1px solid var(--line);}
-.cal-reset{margin-top:8px;background:none;border:1px solid var(--cream-dim);color:var(--cream-dim);padding:6px 14px;border-radius:100px;cursor:pointer;font-family:inherit;font-size:.8rem;}
-.cal-explain{margin:12px 0 0;font-size:.82rem;color:var(--cream-dim);}
-.pb-row{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:2px 0;}
-.pb-dim{color:var(--cream-dim);font-size:.85rem;}
-.pb-hr{border:none;border-top:1px solid var(--line);margin:10px 0;}
-.pb-total{margin-top:8px;}
-.pb-deposit{margin-top:2px;font-size:.8rem;color:var(--cream-dim);}
-.pb-note{margin:12px 0 0;font-size:.8rem;color:var(--cream-dim);}
-@media (max-width:480px){
-  #bookingForm{padding:20px 16px;}
-  .cal{padding:10px;}
-  .cal-grid{gap:4px;}
-  .cal-legend{gap:8px 12px;}
-}
+.cal-legend .l-selhalf::before{background:linear-gradient(to bottom right,var(--bg-card) 50%,var(--lavender) 50%);border:1px solid var(--line);}
+.cal-note{margin-top:10px;font-size:.82rem;color:var(--cream-dim);line-height:1.5;}
+.cal-reset{background:none;border:none;color:var(--cream-dim);text-decoration:underline;cursor:pointer;font-size:.82rem;padding:0;margin-top:8px;font-family:inherit;}
+.price-days{font-size:.88rem;color:var(--cream-dim);}
+.price-total{margin-top:6px;}
+.price-deposit{margin-top:4px;font-size:.8rem;color:var(--cream-dim);}

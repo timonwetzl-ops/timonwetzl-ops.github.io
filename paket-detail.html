@@ -74,7 +74,8 @@
       <div>
         <div class="eyebrow">Paket</div>
         <h1 class="section-title" style="margin-bottom:0">${p.name||""}</h1>
-        <div class="detail-price">${p.price||""} <small style="font-size:.65em">für den 1. Veranstaltungstag · jeder weitere Tag +89 €</small></div>
+        <div class="detail-price">${p.price||""} <small style="font-size:.65em">für den 1. Veranstaltungstag</small></div>
+        <p style="color:var(--cream-dim);font-size:.85rem;margin:-8px 0 14px">Jeder weitere Veranstaltungstag: +89 €</p>
         <p style="color:var(--cream-dim)">${p.description||""}</p>
         ${includes.length ? `<ul class="includes">${includes.map(i=>`<li><span class="check">✓</span><span>${i}</span></li>`).join("")}</ul>` : ""}
         ${extras.length ? `<div class="extras-title">${p.extrasTitle || "Details"}</div><ul class="extras">${extras.map(i=>`<li>${i}</li>`).join("")}</ul>` : ""}

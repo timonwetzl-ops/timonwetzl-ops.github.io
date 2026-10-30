@@ -37,19 +37,17 @@
       <label>Gewünschtes Paket</label>
       <select id="f_package"></select>
 
-      <label>Veranstaltungszeitraum (erster bis letzter Veranstaltungstag)</label>
+      <label>Veranstaltungszeitraum (ersten und letzten Veranstaltungstag auswählen)</label>
       <div class="cal" id="calendar"></div>
       <div class="cal-legend">
-        <span class="l-event">Veranstaltungstag (voller Tag)</span>
-        <span class="l-pick">Abholung (halber Tag, kostenlos)</span>
-        <span class="l-ret">Rückgabe (halber Tag, kostenlos)</span>
-        <span class="l-full">belegt</span>
-        <span class="l-half">halber Tag belegt</span>
-        <span class="l-na">nicht verfügbar</span>
+        <span class="l-sel">Veranstaltungstag (voller Tag)</span>
+        <span class="l-selhalf">Abholung / Rückgabe (halber Tag, kostenlos)</span>
+        <span class="l-full">nicht verfügbar</span>
+        <span class="l-half">halb belegt</span>
       </div>
       <div class="cal-selected" id="calSelected">Bitte wähle den ersten Veranstaltungstag.</div>
-      <button type="button" class="cal-reset" id="calReset" style="display:none">Zeitraum zurücksetzen</button>
-      <p class="cal-explain">Der Tag vor deiner Veranstaltung ist für die Abholung und der Tag danach für die Rückgabe vorgesehen. Diese halben Tage sind kostenlos und werden nicht als zusätzliche Miettage berechnet.</p>
+      <button type="button" class="cal-reset" id="calReset" style="display:none">Auswahl zurücksetzen</button>
+      <div class="cal-note">Der Tag vor deiner Veranstaltung ist für die Abholung und der Tag danach für die Rückgabe vorgesehen. Diese halben Tage sind kostenlos und werden nicht als zusätzliche Miettage berechnet.</div>
 
       <label>Nachricht / zusätzliche Wünsche</label>
       <textarea id="f_message" placeholder="Anzahl Gäste, besondere Wünsche…"></textarea>
@@ -67,33 +65,29 @@
 <script type="module">
   import { renderNav, renderFooter } from "./nav.js";
   import { db, auth, placeholderImg } from "./firebase-init.js";
-  import { getAllPackages } from "./packages-default.js";
+  import { getAllPackages, getPackage } from "./packages-default.js";
+  import * as B from "./booking-logic.js";
   import {
-    collection, getDocs, doc, setDoc, runTransaction, serverTimestamp
+    collection, getDocs, doc, setDoc, serverTimestamp
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import {
-    PACKAGE_BASE_PRICE, EXTRA_DAY_PRICE, DEPOSIT,
-    addDays, niceDate, weekdayName, localTodayIso,
-    emptyOccupancy, addOccupancy, isFullDay, isTooEarly, checkRange, nextSelection, computeBooking
-  } from "./booking-logic.js";
-  import { createStore, BookingError } from "./booking-store.js";
 
   renderNav("anfrage.html");
   renderFooter();
 
-  const store = createStore({ doc, collection, getDocs, setDoc, runTransaction, serverTimestamp }, db);
   const params = new URLSearchParams(location.search);
   const preselected = params.get("package");
 
   let currentUser = null;
   let allPackagesData = [];
-  let sel = null;                       // { start, end } = erster/letzter Veranstaltungstag (ein zusammenhängender Zeitraum)
-  let calMonth = new Date().getMonth();
-  let calYear = new Date().getFullYear();
-  let occ = emptyOccupancy();           // Belegung durch andere Buchungen
-  const todayIso = localTodayIso();
-  const fmtEur = n => `${Number.isInteger(n) ? n : n.toFixed(2).replace(".", ",")} €`;
+  let sel = B.emptySelection();
+  let av = B.createAvailability([], "0000-00-00");
+  const firstBookable = () => B.addDays(B.fmt(new Date()), B.LEAD_DAYS);
+
+  // Kalender startet im ersten buchbaren Monat
+  const start = B.parse(firstBookable());
+  let calMonth = start.getMonth();
+  let calYear = start.getFullYear();
 
   onAuthStateChanged(auth, (user)=>{
     currentUser = user;
@@ -111,7 +105,7 @@
   async function init(){
     await loadPackages();
     showSelectedPkgBox();
-    await loadBlocked();
+    av = B.createAvailability(await loadBlocks(), firstBookable());
     renderCalendar();
   }
 
@@ -122,14 +116,14 @@
     allPackagesData = await getAllPackages();
     for(const p of allPackagesData){
       const opt = document.createElement("option");
-      opt.value = p.id;
+      opt.value = p.name;
       opt.textContent = p.name;
-      if(preselected && (preselected === p.name || preselected === p.id)) opt.selected = true;
+      if(preselected && preselected === p.name) opt.selected = true;
       select.appendChild(opt);
     }
   }
   function currentPackage(){
-    return allPackagesData.find(p => p.id === document.getElementById("f_package").value);
+    return allPackagesData.find(p => p.name === document.getElementById("f_package").value);
   }
   function showSelectedPkgBox(){
     const box = document.getElementById("selectedPkgBox");
@@ -142,7 +136,7 @@
         <img src="${img}">
         <div>
           <h3 style="margin-bottom:4px">${p.name}</h3>
-          <div class="price">${p.price||""} <small>für den 1. Veranstaltungstag · jeder weitere Tag +89 €</small></div>
+          <div class="price">${p.price||""} <small>für den ersten Tag</small></div>
           <p style="color:var(--cream-dim);font-size:.9rem;margin:4px 0 0">${p.description||""}</p>
         </div>
       </div>`;
@@ -152,70 +146,42 @@
     updatePrice();
   });
 
-  // ---------- Belegung laden ----------
-  async function loadBlocked(){
-    occ = emptyOccupancy();
-    // 1) öffentliche Sperrliste (ohne persönliche Daten): Abholtag = startDate, Rückgabetag = endDate
+  // ---------- Belegung laden (immer frisch aus der Datenbank) ----------
+  async function loadBlocks(){
+    const blocks = [];
+    // 1) öffentliche Sperrliste (ohne persönliche Daten)
     try{
       const snap = await getDocs(collection(db,"blocked"));
-      snap.forEach(d => { const b = d.data(); addOccupancy(occ, b.startDate, b.endDate); });
-    }catch(e){ console.warn("blocked nicht lesbar", e); }
-    // 2) ältere Buchungen (nur für Admin lesbar, sonst ignorieren)
+      snap.forEach(d => { const b = d.data(); blocks.push({ S: b.startDate, E: b.endDate }); });
+    }catch(e){ console.warn("Sperrliste nicht lesbar", e); }
+    // 2) ältere Buchungen (nur für den Admin lesbar, sonst ignorieren)
     try{
       const snap = await getDocs(collection(db,"bookings"));
-      snap.forEach(d => {
-        const b = d.data();
-        if(b.bookingStatus === "abgelehnt" || b.status === "abgelehnt") return;
-        if(b.startDate){ addOccupancy(occ, b.startDate, b.endDate); }
-        else if(b.eventDate){ addOccupancy(occ, addDays(b.eventDate,-1), addDays(b.eventDate,1)); }
-      });
+      snap.forEach(d => { const blk = B.blockOf(d.data()); if(blk) blocks.push(blk); });
     }catch(e){ /* normale Kunden dürfen nicht alle Buchungen lesen – ist okay */ }
+    return blocks;
   }
 
   // ---------- Kalender ----------
-  const MONTHS = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
-  const isSelectable = iso => (sel && iso >= sel.start && iso <= sel.end) || checkRange(occ, iso, iso, todayIso).ok;
-
   function renderCalendar(){
     const cal = document.getElementById("calendar");
     const first = new Date(calYear, calMonth, 1);
     const startWeekday = (first.getDay()+6)%7;
     const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
-    const pickup = sel ? addDays(sel.start,-1) : null;
-    const ret    = sel ? addDays(sel.end, 1)  : null;
+    const monthNames = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
     let html = `<div class="cal-head">
-      <button type="button" onclick="calNav(-1)" aria-label="Vorheriger Monat">‹</button>
-      <div class="label">${MONTHS[calMonth]} ${calYear}</div>
-      <button type="button" onclick="calNav(1)" aria-label="Nächster Monat">›</button>
+      <button type="button" onclick="calNav(-1)">‹</button>
+      <div class="label">${monthNames[calMonth]} ${calYear}</div>
+      <button type="button" onclick="calNav(1)">›</button>
     </div>
     <div class="cal-grid">
       ${["Mo","Di","Mi","Do","Fr","Sa","So"].map(d=>`<div class="dow">${d}</div>`).join("")}`;
     for(let i=0;i<startWeekday;i++) html += `<div></div>`;
-
     for(let day=1; day<=daysInMonth; day++){
-      const iso = `${calYear}-${String(calMonth+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
-      let cls = "", style = "", label = "", disabled = !isSelectable(iso);
-      const isEvent  = sel && iso >= sel.start && iso <= sel.end;
-      const isPickup = iso === pickup, isReturn = iso === ret;
-
-      if(isEvent){ cls = "ev"; label = "Veranstaltungstag (voller Tag)"; }
-      else if(isFullDay(occ, iso)){ cls = "full"; label = "belegt"; }
-      else if(occ.am.has(iso) || occ.pm.has(iso) || isPickup || isReturn){
-        // linke obere Hälfte = Vormittag (Rückgabe), rechte untere Hälfte = Nachmittag (Abholung)
-        const am = occ.am.has(iso) ? "var(--pink)" : (isReturn ? "var(--mint)" : "var(--bg-card)");
-        const pm = occ.pm.has(iso) ? "var(--pink)" : (isPickup ? "var(--mint)" : "var(--bg-card)");
-        cls = "hd" + ((isPickup||isReturn) ? " mine" : "");
-        style = `style="--am:${am};--pm:${pm}"`;
-        const parts = [];
-        if(isReturn) parts.push("Rückgabe (halber Tag, kostenlos)");
-        if(isPickup) parts.push("Abholung (halber Tag, kostenlos)");
-        if(occ.am.has(iso) || occ.pm.has(iso)) parts.push("halber Tag anderweitig belegt");
-        label = parts.join(", ");
-      }
-      else if(disabled){ cls = "na"; label = "nicht verfügbar"; }
-      else label = "frei";
-
-      html += `<button type="button" ${disabled?"disabled":""} class="${cls}" ${style} title="${label}" aria-label="${day}. ${MONTHS[calMonth]}: ${label}" onclick="pickDate('${iso}')">${day}</button>`;
+      const iso = `${calYear}-${B.pad(calMonth+1)}-${B.pad(day)}`;
+      const cls = B.dayClass(sel, iso, av);
+      const disabled = B.dayDisabled(sel, iso, av);
+      html += `<button type="button" data-date="${iso}" ${disabled?"disabled":""} class="${cls}" onclick="pickDate('${iso}')">${day}</button>`;
     }
     html += `</div>`;
     cal.innerHTML = html;
@@ -229,113 +195,103 @@
     renderCalendar();
   }
   window.pickDate = function(iso){
-    sel = nextSelection(sel, iso, occ, todayIso);
+    sel = B.pickDay(sel, iso, av);
     renderCalendar();
   }
-  document.getElementById("calReset").addEventListener("click", ()=>{ sel = null; renderCalendar(); });
+  document.getElementById("calReset").addEventListener("click", ()=>{
+    sel = B.emptySelection();
+    renderCalendar();
+  });
 
-  const longDate = iso => `${weekdayName(iso).slice(0,2)}, ${niceDate(iso)}`;
   function updateHint(){
     const el = document.getElementById("calSelected");
     el.style.color = "var(--lavender)";
-    document.getElementById("calReset").style.display = sel ? "inline-block" : "none";
-    if(!sel){ el.textContent = "Bitte wähle den ersten Veranstaltungstag."; return; }
-    const n = computeBooking("basic", sel.start, sel.end).eventDays;
-    el.textContent = n === 1
-      ? `Veranstaltungstag: ${longDate(sel.start)}. Tippe einen späteren Tag an, um weitere Veranstaltungstage hinzuzufügen.`
-      : `${n} Veranstaltungstage: ${longDate(sel.start)} bis ${longDate(sel.end)}. Tippe einen Tag im Zeitraum an, um ihn zu verkürzen.`;
+    document.getElementById("calReset").style.display = sel.first ? "inline" : "none";
+    if(!sel.first){ el.textContent = "Bitte wähle den ersten Veranstaltungstag."; return; }
+    const { pickup, ret } = B.periodFor(sel.first, sel.last);
+    const range = sel.first === sel.last ? B.nice(sel.first) : `${B.nice(sel.first)} bis ${B.nice(sel.last)}`;
+    let txt = `Veranstaltung: ${range} · Abholung: ${B.nice(pickup)} · Rückgabe: ${B.nice(ret)}`;
+    if(sel.phase === "extending") txt += " — Tippe jetzt den letzten Veranstaltungstag an, oder denselben Tag nochmal, wenn es nur ein Tag ist.";
+    el.textContent = txt;
   }
 
-  // ---------- Preis (ausschließlich aus den vollen Veranstaltungstagen) ----------
-  function computeCurrent(){
-    const p = currentPackage();
-    if(!p || !sel) return null;
-    return { pkg: p, ...computeBooking(p.id, sel.start, sel.end) };
-  }
+  // ---------- Preis ----------
   function updatePrice(){
     const box = document.getElementById("priceBox");
-    const r = computeCurrent();
-    if(!r){ box.style.display = "none"; return; }
+    const p = currentPackage();
+    if(!p || !sel.first){ box.style.display = "none"; box.innerHTML = ""; return; }
     box.style.display = "block";
-    const extra = r.extraDays > 0
-      ? `<div class="pb-row"><span>${r.extraDays} weitere${r.extraDays===1?"r":""} Veranstaltungstag${r.extraDays===1?"":"e"} × ${fmtEur(EXTRA_DAY_PRICE)}</span><span>${fmtEur(r.extraDays*EXTRA_DAY_PRICE)}</span></div>` : "";
-    const sorglos = (r.packageId === "rundumsorglos" && r.eventDays > 1)
-      ? `<p class="pb-note">Jeder weitere Veranstaltungstag kostet ${fmtEur(EXTRA_DAY_PRICE)}. Eine erneute Lieferung oder Befüllung ist darin nicht automatisch enthalten – wenn du das brauchst, schreib es bitte in die Nachricht, dann klären wir es separat mit dir.</p>` : "";
-    box.innerHTML = `
-      <div class="pb-row pb-dim"><span>Abholung (halber Tag, kostenlos)</span><span>${longDate(r.pickupDate)}</span></div>
-      <div class="pb-row"><span>Veranstaltung (${r.eventDays} ${r.eventDays===1?"Tag":"Tage"})</span><span>${r.eventDays===1 ? longDate(r.eventStart) : longDate(r.eventStart)+" – "+longDate(r.eventEnd)}</span></div>
-      <div class="pb-row pb-dim"><span>Rückgabe (halber Tag, kostenlos)</span><span>${longDate(r.returnDate)}</span></div>
-      <hr class="pb-hr">
-      <div class="pb-row"><span>${r.pkg.name} – 1. Veranstaltungstag</span><span>${fmtEur(r.basePrice)}</span></div>
-      ${extra}
-      <div class="pb-total">Gesamtmietpreis: <strong>${fmtEur(r.rentalPrice)}</strong></div>
-      <div class="pb-deposit">+ ${fmtEur(DEPOSIT)} Kaution</div>
-      ${sorglos}`;
+    box.innerHTML = B.priceSummaryHtml(B.parsePrice(p.price), B.eventDayCount(sel.first, sel.last));
   }
 
   // ---------- Absenden ----------
   document.getElementById("bookingForm").addEventListener("submit", async (e)=>{
     e.preventDefault();
     const status = document.getElementById("formStatus");
-    const submitBtn = e.target.querySelector("button[type=submit]");
-    if(!sel){
+    if(!sel.first){
       const el = document.getElementById("calSelected");
-      el.textContent = "Bitte wähle den Veranstaltungszeitraum aus.";
+      el.textContent = "Bitte wähle zuerst deinen Veranstaltungszeitraum aus.";
       el.style.color = "var(--pink)";
       return;
     }
-    // Preis und Zeiträume werden hier aus Paket + Datum NEU berechnet; ein angezeigter Wert wird nicht übernommen.
-    const packageId = document.getElementById("f_package").value;
-    const pkg = allPackagesData.find(p => p.id === packageId);
-    if(!pkg || !(packageId in PACKAGE_BASE_PRICE)){ status.textContent = "Bitte wähle ein Paket."; status.style.color = "var(--pink)"; return; }
-    let b;
-    try{ b = computeBooking(packageId, sel.start, sel.end); }
-    catch(err){ status.textContent = "Der Zeitraum ist ungültig."; status.style.color = "var(--pink)"; return; }
-
-    submitBtn.disabled = true;
-    status.textContent = "Wird gesendet…";
+    status.textContent = "Verfügbarkeit wird geprüft…";
     status.style.color = "var(--cream-dim)";
     try{
-      const bookingId = doc(collection(db,"bookings")).id;
-      await store.reserve(bookingId, {
+      // 1) Verfügbarkeit unmittelbar vor dem Speichern NOCH EINMAL frisch prüfen
+      const freshAv = B.createAvailability(await loadBlocks(), firstBookable());
+      if(!freshAv.validEventRange(sel.first, sel.last)){
+        av = freshAv;
+        sel = B.emptySelection();
+        renderCalendar();
+        status.textContent = "Dieser Zeitraum ist leider nicht mehr frei. Bitte wähle einen anderen.";
+        status.style.color = "var(--pink)";
+        return;
+      }
+      // 2) Preis frisch berechnen: aktueller Paketpreis aus der Datenbank + gewählte Tage
+      const chosen = currentPackage();
+      const pkg = await getPackage(chosen.id);
+      const basePrice = B.parsePrice(pkg.price);
+      const eventDays = B.eventDayCount(sel.first, sel.last);
+      const total = B.rentalPrice(basePrice, eventDays);
+      const { pickup, ret } = B.periodFor(sel.first, sel.last);
+
+      status.textContent = "Wird gesendet…";
+      const bref = doc(collection(db,"bookings"));
+      await setDoc(bref,{
         uid: currentUser.uid,
         name: document.getElementById("f_name").value,
         email: document.getElementById("f_email").value,
         phone: document.getElementById("f_phone").value,
         location: document.getElementById("f_location").value,
-        // Veranstaltung (volle Tage) und Halbtage – eindeutig gespeichert
-        eventStart: b.eventStart, eventEnd: b.eventEnd, eventDays: b.eventDays,
-        pickupDate: b.pickupDate, returnDate: b.returnDate,
-        // bisherige Felder: Abholtag/Rückgabetag, damit Verfügbarkeit und ältere Ansichten unverändert funktionieren
-        startDate: b.pickupDate, endDate: b.returnDate,
-        eventDate: b.eventStart,
-        days: b.eventDays,
-        package: pkg.name, packageId,
-        basePrice: b.basePrice, extraDayPrice: b.extraDayPrice,
-        price: b.rentalPrice,            // Mietpreis, ohne Kaution
-        deposit: b.deposit,              // Kaution zusätzlich, nicht im Mietpreis enthalten
+        package: pkg.name,
+        firstEventDay: sel.first,
+        lastEventDay: sel.last,
+        eventDays,
+        startDate: pickup,            // Abholtag (halber Tag)
+        endDate: ret,                 // Rückgabetag (halber Tag)
+        eventDate: sel.first,         // für ältere Ansichten
+        basePrice,
+        extraDayPrice: B.EXTRA_DAY_PRICE,
+        price: total,                 // Mietpreis ohne Kaution
+        deposit: B.DEPOSIT,           // Kaution, separat
         message: document.getElementById("f_message").value,
         bookingStatus: "neu",
         paymentStatus: "offen",
         paidAmount: 0,
-        pricingVersion: 2
+        createdAt: serverTimestamp()
       });
+      // öffentliche Sperrliste (ohne persönliche Daten) mit gleicher ID
+      try{
+        await setDoc(doc(db,"blocked",bref.id), { startDate: pickup, endDate: ret, uid: currentUser.uid });
+      }catch(err){ console.warn("Sperrliste nicht geschrieben", err); }
+
       status.textContent = "Danke! Deine Buchung ist da — schau bald bei 'Meine Buchungen' vorbei.";
       status.style.color = "var(--mint)";
       setTimeout(()=>location.href="meine-buchungen.html", 1400);
     }catch(err){
-      submitBtn.disabled = false;
-      if(err instanceof BookingError){
-        status.textContent = err.message + " Bitte wähle einen anderen Zeitraum.";
-        status.style.color = "var(--pink)";
-        sel = null;
-        await loadBlocked();
-        renderCalendar();
-      } else {
-        status.textContent = "Ups, das hat nicht geklappt. Versuch's nochmal.";
-        status.style.color = "var(--pink)";
-        console.error(err);
-      }
+      status.textContent = "Ups, das hat nicht geklappt. Versuch's nochmal.";
+      status.style.color = "var(--pink)";
+      console.error(err);
     }
   });
 </script>

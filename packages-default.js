@@ -1,6 +1,5 @@
 import { db } from "./firebase-init.js";
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { PACKAGE_BASE_PRICE } from "./booking-logic.js";
 
 // Die drei Pakete – immer vorhanden, genau einmal.
 export const PACKAGE_IDS = ["basic", "comfort", "rundumsorglos"];
@@ -69,7 +68,7 @@ export const DEFAULT_PACKAGES = {
 // Holt ein Paket: Startwerte + das, was in der Datenbank gespeichert ist.
 // Klappt die Datenbank mal nicht, bleiben trotzdem die Startwerte sichtbar.
 export async function getPackage(id) {
-  const out = { id, ...structuredClone(DEFAULT_PACKAGES[id]) };
+  const out = { id, ...JSON.parse(JSON.stringify(DEFAULT_PACKAGES[id])) };
   try {
     const snap = await getDoc(doc(db, "packages", id));
     if (snap.exists()) {
@@ -82,9 +81,6 @@ export async function getPackage(id) {
   } catch (e) {
     console.warn("Pakete konnten nicht aus der Datenbank geladen werden – Startwerte werden gezeigt.", e);
   }
-  // Der Preis für den ersten Veranstaltungstag ist verbindlich (booking-logic.js) und wird nie
-  // durch einen alten, in der Datenbank gespeicherten Preis überschrieben.
-  out.price = `${PACKAGE_BASE_PRICE[id]} €`;
   return out;
 }
 

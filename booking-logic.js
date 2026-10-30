@@ -1,132 +1,126 @@
-// Gemeinsame Buchungslogik: Preise, Datumsrechnung, Verfügbarkeit, Auswahlregeln.
-// Reines JavaScript ohne Firebase – wird von anfrage.html, dashboard.html und den Tests genutzt.
-//
-// Begriffe:
-//   eventStart / eventEnd = erster / letzter Veranstaltungstag (volle, kostenpflichtige Tage)
-//   pickupDate            = Tag vor eventStart  (halber Tag, kostenlos, Nachmittag)
-//   returnDate            = Tag nach eventEnd   (halber Tag, kostenlos, bis Mittag)
-// Im bestehenden System heißen Abhol-/Rückgabetag startDate/endDate. Das bleibt so,
-// damit ältere Ansichten und ältere Buchungen weiter funktionieren.
+// Buchungslogik: Datum, Preis, Verfügbarkeit und Klick-Verhalten im Kalender.
+// Diese Datei hat KEINE Verbindung zu Firebase und wird deshalb auch getestet.
 
-export const PACKAGE_BASE_PRICE = { basic: 89, comfort: 129, rundumsorglos: 229 };
-export const EXTRA_DAY_PRICE = 89;
-export const DEPOSIT = 100;
-export const LEAD_DAYS = 14;        // wie bisher: die nächsten 2 Wochen sind immer belegt
-export const MAX_EVENT_DAYS = 14;   // technische Obergrenze (Schutz vor unsinnigen Werten)
+export const EXTRA_DAY_PRICE = 89;  // jeder weitere Veranstaltungstag, bei allen Paketen
+export const DEPOSIT = 100;         // Kaution, wird NICHT zum Mietpreis gerechnet
+export const LEAD_DAYS = 14;        // die nächsten 2 Wochen ab heute sind nicht buchbar
 
-// ---------- Datums-Helfer (reine Kalenderdaten, UTC-Rechnung => keine Sommerzeit-Fehler) ----------
-const pad = n => String(n).padStart(2, "0");
-export const isIso = s => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s) &&
-  fmtUTC(parseUTC(s)) === s;
-function parseUTC(iso) { const [y, m, d] = iso.split("-").map(Number); return Date.UTC(y, m - 1, d); }
-function fmtUTC(ms) { const d = new Date(ms); return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`; }
-export const addDays = (iso, n) => fmtUTC(parseUTC(iso) + n * 86400000);
-export const diffDays = (a, b) => Math.round((parseUTC(b) - parseUTC(a)) / 86400000);
-export const niceDate = iso => { const [y, m, d] = iso.split("-"); return `${d}.${m}.${y}`; };
-export const localTodayIso = (now = new Date()) => `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-const WD = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
-export const weekdayName = iso => WD[new Date(parseUTC(iso)).getUTCDay()];
+// ---------- Datums-Helfer (immer lokale Kalendertage, keine Zeitzonen-Fehler) ----------
+export const pad = n => String(n).padStart(2, "0");
+export const fmt = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+export const parse = iso => { const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d); };
+export const addDays = (iso, n) => { const d = parse(iso); d.setDate(d.getDate() + n); return fmt(d); };
+export const diffDays = (a, b) => Math.round((parse(b) - parse(a)) / 86400000);
+export const nice = iso => { const [y, m, d] = iso.split("-"); return `${d}.${m}.${y}`; };
 
 // ---------- Preis ----------
-export function rentalPrice(packageId, eventDays) {
-  const base = PACKAGE_BASE_PRICE[packageId];
-  if (base === undefined) throw new Error("Unbekanntes Paket: " + packageId);
-  if (!Number.isInteger(eventDays) || eventDays < 1) throw new Error("Mindestens ein Veranstaltungstag nötig");
-  return base + (eventDays - 1) * EXTRA_DAY_PRICE;
+export function parsePrice(str) {
+  return parseFloat((str || "").toString().replace(/[^\d.,]/g, "").replace(",", ".")) || 0;
+}
+export const eventDayCount = (firstDay, lastDay) => diffDays(firstDay, lastDay) + 1;
+
+// Mietpreis = Paketpreis für den 1. Tag + (Tage - 1) x 89 €.
+// Abholtag und Rückgabetag (halbe Tage) kommen hier gar nicht vor.
+export function rentalPrice(basePrice, eventDays) {
+  if (!Number.isInteger(eventDays) || eventDays < 1) throw new Error("Mindestens 1 Veranstaltungstag nötig");
+  return basePrice + (eventDays - 1) * EXTRA_DAY_PRICE;
 }
 
-// Aus Paket + Veranstaltungszeitraum alles ableiten. Einzige Quelle für Tage, Halbtage und Preis.
-export function computeBooking(packageId, eventStart, eventEnd) {
-  if (!isIso(eventStart) || !isIso(eventEnd)) throw new Error("Ungültiges Datum");
-  if (eventEnd < eventStart) throw new Error("Ende liegt vor dem Start");
-  const eventDays = diffDays(eventStart, eventEnd) + 1;   // Anzahl VOLLER Tage
-  if (eventDays > MAX_EVENT_DAYS) throw new Error("Zeitraum zu lang");
-  const base = PACKAGE_BASE_PRICE[packageId];
-  return {
-    packageId, eventStart, eventEnd, eventDays,
-    pickupDate: addDays(eventStart, -1),
-    returnDate: addDays(eventEnd, 1),
-    basePrice: base,
-    extraDays: eventDays - 1,
-    extraDayPrice: EXTRA_DAY_PRICE,
-    rentalPrice: rentalPrice(packageId, eventDays),   // Abhol-/Rückgabetag erhöhen den Preis nie
-    deposit: DEPOSIT                                  // zusätzlich, NICHT im Mietpreis enthalten
+export function euro(n) {
+  return (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(".", ",")) + " €";
+}
+
+// Preisübersicht als HTML. Die Kaution steht GANZ AM ENDE, einmal, als kleine Zusatzzeile.
+export function priceSummaryHtml(basePrice, eventDays) {
+  const total = rentalPrice(basePrice, eventDays);
+  const calc = eventDays === 1
+    ? `${euro(basePrice)}`
+    : `${euro(basePrice)} + ${eventDays - 1} × ${euro(EXTRA_DAY_PRICE)}`;
+  return `<div class="price-days">${eventDays} ${eventDays === 1 ? "Veranstaltungstag" : "Veranstaltungstage"}: ${calc}</div>` +
+         `<div class="price-total">Gesamtmietpreis: <strong>${euro(total)}</strong></div>` +
+         `<div class="price-deposit">+ ${euro(DEPOSIT)} Kaution</div>`;
+}
+
+// ---------- Zeitraum einer Buchung ----------
+// Veranstaltungstage: first … last (volle Tage, kostenpflichtig)
+// Abholung: Tag davor (halber Tag, Nachmittag) · Rückgabe: Tag danach (halber Tag, Vormittag)
+export function periodFor(firstDay, lastDay) {
+  return { pickup: addDays(firstDay, -1), ret: addDays(lastDay, 1) };
+}
+
+// Aus gespeicherten Buchungen den belegten Zeitraum {S: Abholtag, E: Rückgabetag} machen.
+export function blockOf(b) {
+  if (!b) return null;
+  if ((b.bookingStatus || b.status) === "abgelehnt") return null;
+  if (b.startDate) return { S: b.startDate, E: b.endDate || b.startDate };
+  if (b.eventDate) return { S: addDays(b.eventDate, -1), E: addDays(b.eventDate, 1) }; // ältere Buchungen
+  return null;
+}
+
+// ---------- Verfügbarkeit ----------
+export function createAvailability(blocks, firstBookable) {
+  const full = new Set(), pmTaken = new Set(), amTaken = new Set();
+  for (const blk of blocks) {
+    if (!blk || !blk.S) continue;
+    const { S, E } = blk;
+    if (!E || E === S) { full.add(S); continue; }
+    pmTaken.add(S);   // am Abholtag ist der Nachmittag belegt
+    amTaken.add(E);   // am Rückgabetag ist der Vormittag belegt
+    for (let d = addDays(S, 1); d < E; d = addDays(d, 1)) full.add(d);
+  }
+  const isFull = d => full.has(d) || (pmTaken.has(d) && amTaken.has(d));
+  const tooEarly = d => d < firstBookable;
+  const canStart = d => !tooEarly(d) && !isFull(d) && !pmTaken.has(d);   // Abholung = Nachmittag muss frei sein
+  const canEnd = d => !tooEarly(d) && !isFull(d) && !amTaken.has(d);     // Rückgabe = Vormittag muss frei sein
+  const interiorFree = (a, b) => {
+    for (let d = addDays(a, 1); d < b; d = addDays(d, 1)) {
+      if (isFull(d) || pmTaken.has(d) || amTaken.has(d)) return false;
+    }
+    return true;
   };
+  // Ist dieser Veranstaltungszeitraum (inkl. Abhol- und Rückgabetag) komplett frei?
+  const validEventRange = (firstDay, lastDay) => {
+    if (!firstDay || !lastDay || lastDay < firstDay) return false;
+    const { pickup, ret } = periodFor(firstDay, lastDay);
+    return canStart(pickup) && canEnd(ret) && interiorFree(pickup, ret);
+  };
+  return { isFull, tooEarly, canStart, canEnd, interiorFree, validEventRange, pmTaken, amTaken, full };
 }
 
-// ---------- Belegung ----------
-// Eine Belegung ist {startDate, endDate} = Abholtag/Rückgabetag (altes und neues Format identisch).
-// Abholtag: Nachmittag belegt (pm). Rückgabetag: Vormittag belegt (am). Tage dazwischen: voll.
-export function emptyOccupancy() { return { full: new Set(), pm: new Set(), am: new Set() }; }
-export function addOccupancy(occ, startDate, endDate) {
-  if (!startDate) return;
-  if (!endDate || endDate === startDate) { occ.full.add(startDate); return; }
-  occ.pm.add(startDate);
-  occ.am.add(endDate);
-  for (let d = addDays(startDate, 1); d < endDate; d = addDays(d, 1)) occ.full.add(d);
-}
-export function buildOccupancy(list) {
-  const occ = emptyOccupancy();
-  for (const b of list) addOccupancy(occ, b.startDate, b.endDate);
-  return occ;
-}
+// ---------- Auswahl im Kalender (Klick-Verhalten und Einfärbung) ----------
+// state = { first, last, phase }   phase: "none" | "extending" | "done"
+export const emptySelection = () => ({ first: null, last: null, phase: "none" });
 
-export const isFullDay = (occ, d) => occ.full.has(d) || (occ.pm.has(d) && occ.am.has(d));
-export const isTooEarly = (d, todayIso) => d < addDays(todayIso, LEAD_DAYS);
-
-// Ist der komplette benötigte Zeitraum (Abholung + Veranstaltungstage + Rückgabe) frei?
-// Rückgabe: { ok:true } oder { ok:false, reason }
-export function checkRange(occ, eventStart, eventEnd, todayIso) {
-  let b;
-  try { b = computeBooking("basic", eventStart, eventEnd); }
-  catch (e) { return { ok: false, reason: e.message }; }
-  const { pickupDate: P, returnDate: R } = b;
-  if (isTooEarly(P, todayIso)) return { ok: false, reason: "zu kurzfristig" };
-  if (isFullDay(occ, P) || occ.pm.has(P)) return { ok: false, reason: "Abholtag belegt" };
-  if (isFullDay(occ, R) || occ.am.has(R)) return { ok: false, reason: "Rückgabetag belegt" };
-  for (let d = eventStart; d <= eventEnd; d = addDays(d, 1)) {
-    if (isFullDay(occ, d) || occ.pm.has(d) || occ.am.has(d)) return { ok: false, reason: "Veranstaltungstag belegt" };
+export function pickDay(state, iso, av) {
+  if (state.phase !== "extending") {
+    // neue Auswahl beginnen (ersetzt eine frühere – es gibt immer nur EINEN Zeitraum)
+    return av.validEventRange(iso, iso) ? { first: iso, last: iso, phase: "extending" } : state;
   }
-  return { ok: true };
-}
-
-// ---------- Auswahl (ein zusammenhängender Zeitraum) ----------
-// sel = null | {start, end}; end >= start. Nie zwei getrennte Zeiträume.
-// Klick auf Tag d:
-//   - keine Auswahl: Auswahl = nur d (falls möglich)
-//   - d liegt hinter der Auswahl / davor: Zeitraum wird bis d erweitert (alle Tage dazwischen kommen automatisch dazu), falls frei
-//   - d liegt in der Auswahl: Zeitraum endet jetzt an d (verkürzen); Klick auf den einzigen gewählten Tag hebt die Auswahl auf
-//   - Erweiterung nicht möglich, aber d allein buchbar: neuer Zeitraum nur mit d (ersetzt die alte Auswahl)
-export function nextSelection(sel, d, occ, todayIso) {
-  if (!sel) return checkRange(occ, d, d, todayIso).ok ? { start: d, end: d } : null;
-  if (d >= sel.start && d <= sel.end) {
-    if (sel.start === sel.end) return null;
-    return { start: sel.start, end: d };
+  if (iso === state.first) return { ...state, phase: "done" };           // nur ein Veranstaltungstag
+  if (iso < state.first) {
+    return av.validEventRange(iso, iso) ? { first: iso, last: iso, phase: "extending" } : state;
   }
-  const cand = d > sel.end ? { start: sel.start, end: d } : { start: d, end: sel.end };
-  if (checkRange(occ, cand.start, cand.end, todayIso).ok &&
-      diffDays(cand.start, cand.end) + 1 <= MAX_EVENT_DAYS) return cand;
-  return checkRange(occ, d, d, todayIso).ok ? { start: d, end: d } : sel;
+  if (av.validEventRange(state.first, iso)) return { first: state.first, last: iso, phase: "done" };
+  return state;                                                          // Lücke/Belegung dazwischen: ignorieren
 }
 
-// ---------- Tages-Sperren (für atomares Reservieren) ----------
-// Pro Kalendertag ein Dokument {fullBy, amBy, pmBy}. Gibt die benötigten Plätze für eine Buchung zurück.
-export function lockPlan(eventStart, eventEnd) {
-  const { pickupDate, returnDate } = computeBooking("basic", eventStart, eventEnd);
-  const plan = [{ date: pickupDate, slot: "pm" }];
-  for (let d = eventStart; d <= eventEnd; d = addDays(d, 1)) plan.push({ date: d, slot: "full" });
-  plan.push({ date: returnDate, slot: "am" });
-  return plan;
+export function dayDisabled(state, iso, av) {
+  if (state.phase !== "extending") return !av.validEventRange(iso, iso);
+  if (iso === state.first) return false;
+  if (iso < state.first) return !av.validEventRange(iso, iso);
+  return !av.validEventRange(state.first, iso);
 }
-const SLOT_FIELD = { full: "fullBy", am: "amBy", pm: "pmBy" };
-export const slotField = slot => SLOT_FIELD[slot];
 
-// existing = Inhalt des Tages-Dokuments (oder undefined). ownerId = eigene Buchung (zählt nicht als Konflikt).
-export function slotConflict(existing, slot, ownerId = null) {
-  const e = existing || {};
-  const taken = k => e[k] && e[k] !== ownerId;
-  if (slot === "full") return !!(taken("fullBy") || taken("amBy") || taken("pmBy"));
-  if (slot === "am") return !!(taken("fullBy") || taken("amBy"));
-  if (slot === "pm") return !!(taken("fullBy") || taken("pmBy"));
-  return true;
+// Klasse für die Farbe eines Kalendertags
+export function dayClass(state, iso, av) {
+  if (state.first) {
+    const { pickup, ret } = periodFor(state.first, state.last);
+    if (iso === pickup) return "sel-start";            // halber Tag: Abholung
+    if (iso === ret) return "sel-end";                 // halber Tag: Rückgabe
+    if (iso >= state.first && iso <= state.last) return "sel";   // voller Veranstaltungstag
+  }
+  if (av.isFull(iso)) return "full";
+  if (av.pmTaken.has(iso)) return "half-pm";
+  if (av.amTaken.has(iso)) return "half-am";
+  return "";
 }
