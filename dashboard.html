@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard — Candy Bar Vogtland</title>
+<script>try{var t=localStorage.getItem("theme");if(t!=="dark"&&t!=="light")t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";document.documentElement.dataset.theme=t}catch(e){}</script>
+<link rel="icon" href="logo-mark.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Inter:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="style.css">
 <style>
   #gate,#adminLoginGate{min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:20px;text-align:center;}
@@ -16,7 +21,7 @@
   .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:40px;}
   .stat{background:var(--bg-card);border-radius:16px;padding:22px;border:1px solid #3a2b1f16;}
   .stat .label{font-size:.8rem;color:var(--cream-dim);text-transform:uppercase;letter-spacing:1px;}
-  .stat .value{font-family:'JetBrains Mono',monospace;font-size:1.8rem;color:#c9962f;margin-top:6px;}
+  .stat .value{font-variant-numeric:tabular-nums;font-size:1.8rem;color:#c9962f;margin-top:6px;}
 
   .dash-section{margin-bottom:50px;}
   .dash-section h2{font-size:1.4rem;margin-bottom:18px;}
@@ -37,7 +42,7 @@
   .imgList img{width:110px;height:110px;object-fit:cover;border-radius:10px;}
   .imgList button{position:absolute;top:4px;right:4px;background:var(--pink);color:#1b1023;border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;font-weight:700;padding:0;}
   .msg{font-size:.85rem;margin-top:8px;color:var(--mint);min-height:1.2em;}
-  .fileBtn{display:inline-block;padding:10px 18px;border-radius:8px;background:var(--bg-card-2);border:1px dashed var(--mint);color:#4a8266;cursor:pointer;font-size:.9rem;}
+  .fileBtn{display:inline-block;padding:10px 18px;border-radius:8px;background:var(--bg-card-2);border:1px dashed var(--mint);color:var(--cream);cursor:pointer;font-size:.9rem;}
   .fileBtn input{display:none;}
   .includesEdit textarea{width:100%;min-height:70px;}
 </style>

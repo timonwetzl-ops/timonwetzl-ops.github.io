@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Paket — Candy Bar Vogtland</title>
+<script>try{var t=localStorage.getItem("theme");if(t!=="dark"&&t!=="light")t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";document.documentElement.dataset.theme=t}catch(e){}</script>
+<link rel="icon" href="logo-mark.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Inter:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="style.css">
 <style>
   .detail-grid{display:grid;grid-template-columns:1fr 1.1fr;gap:56px;align-items:start;}
@@ -17,7 +22,7 @@
     .detail-img{aspect-ratio:4/3;}
   }
 
-  .detail-price{font-family:'JetBrains Mono',monospace;color:var(--cream-dim);font-size:1.3rem;margin:10px 0 18px;}
+  .detail-price{font-variant-numeric:tabular-nums;color:var(--cream-dim);font-size:1.3rem;margin:10px 0 18px;}
   .detail-note{color:var(--cream-dim);font-size:.9rem;margin-top:18px;padding-top:16px;border-top:1px solid var(--line);}
 
   .includes{margin:22px 0;padding:0;list-style:none;}
