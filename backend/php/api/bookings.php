@@ -57,7 +57,11 @@ if (
 
 $package = $packages[$packageId];
 $basePrice = (int)$package['price_cents'];
-$price = $basePrice + ($eventDays - 1) * (int)$bookingConfig['extra_day_price_cents'];
+try {
+    $price = booking_price_cents($bookingConfig, $packageId, $eventDays);
+} catch (InvalidArgumentException) {
+    json_response(['error' => 'Das gewählte Paket oder der Zeitraum ist ungültig.'], 400);
+}
 $deposit = (int)$bookingConfig['deposit_cents'];
 $pickupDate = shift_date($eventStart, -1);
 $returnDate = shift_date($eventEnd, 1);
