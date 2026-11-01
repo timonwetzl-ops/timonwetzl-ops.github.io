@@ -58,6 +58,7 @@ class BookingSchemaTests(unittest.TestCase):
         self.add_booking("A", [("2027-05-10", "am"), ("2027-05-10", "pm")])
         self.db.commit()
         self.db.execute("DELETE FROM booking_locks WHERE booking_id='A'")
+        self.db.commit()
         self.db.execute("BEGIN")
         self.add_booking("B", [("2027-05-10", "am"), ("2027-05-10", "pm")])
         self.db.commit()
