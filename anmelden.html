@@ -19,6 +19,9 @@
   <section style="display:flex;justify-content:center;">
     <div class="panel" style="max-width:420px;width:100%;" id="authPanel">
       <h2 id="authTitle" class="section-title" style="margin-bottom:20px;">Anmelden</h2>
+      <button class="btn block outline" id="googleSignInBtn" type="button">Mit Google anmelden</button>
+      <button class="btn block outline" id="appleSignInBtn" type="button" style="margin-top:10px;">Mit Apple anmelden</button>
+      <div style="display:flex;align-items:center;gap:12px;margin:18px 0;color:var(--cream-dim);font-size:.85rem;"><span style="height:1px;background:var(--cream-dim);opacity:.35;flex:1;"></span>oder mit E-Mail<span style="height:1px;background:var(--cream-dim);opacity:.35;flex:1;"></span></div>
       <div class="authField">
         <label for="auth_email">E-Mail</label>
         <input type="email" id="auth_email" autocomplete="email">
@@ -29,7 +32,6 @@
       </div>
       <div class="authField" id="pwHint" style="display:none;margin-top:-6px;color:var(--cream-dim);font-size:.82rem">Mindestens 6 Zeichen.</div>
       <button class="btn block" id="authSubmitBtn">Anmelden</button>
-      <button class="btn block outline" id="googleSignInBtn" type="button" style="margin-top:12px;">Mit Google anmelden</button>
       <div id="authError" role="alert"></div>
       <div class="authSwitch" id="forgotRow"><a id="forgotLink">Passwort vergessen?</a></div>
       <div class="authSwitch" id="authSwitchText">
@@ -57,7 +59,7 @@
   import {
     createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification,
     sendPasswordResetEmail, signOut, onAuthStateChanged,
-    GoogleAuthProvider, signInWithPopup
+    GoogleAuthProvider, OAuthProvider, signInWithPopup
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
   renderNav("anmelden.html");
@@ -202,7 +204,28 @@
     }
     btn.disabled = false;
   });
-  [$("auth_email"), $("auth_password")].forEach(el => el.addEventListener("keydown", e => { if(e.key === "Enter") submitAuth(); }));
+  // ---------- Apple-Anmeldung ----------
+  $("appleSignInBtn").addEventListener("click", async () => {
+    const btn = $("appleSignInBtn");
+    const err = $("authError");
+    err.textContent = "";
+    btn.disabled = true;
+    try {
+      const provider = new OAuthProvider("apple.com");
+      provider.addScope("email");
+      provider.addScope("name");
+      const cred = await signInWithPopup(auth, provider);
+      if (cred.user.emailVerified) {
+        location.href = buildReturnUrl();
+      } else {
+        showVerify(cred.user, false);
+      }
+    } catch (e) {
+      err.textContent = friendly(e);
+    }
+    btn.disabled = false;
+  });
+    [$("auth_email"), $("auth_password")].forEach(el => el.addEventListener("keydown", e => { if(e.key === "Enter") submitAuth(); }));
 
   async function submitAuth(){
     const email = $("auth_email").value.trim();
