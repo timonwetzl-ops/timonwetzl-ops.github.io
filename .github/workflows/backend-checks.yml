@@ -23,6 +23,7 @@ jobs:
         run: |
           php -l backend/php/lib/bootstrap.php
           php -l backend/php/api/blocked.php
+          php -l backend/php/api/packages.php
           php -l backend/php/api/bookings.php
           php -l backend/php/tests/run.php
           php backend/php/tests/run.php
