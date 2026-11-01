@@ -24,5 +24,7 @@ jobs:
           php -l backend/php/lib/bootstrap.php
           php -l backend/php/api/blocked.php
           php -l backend/php/api/bookings.php
+          php -l backend/php/tests/run.php
+          php backend/php/tests/run.php
       - name: D1 schema and booking-lock tests
         run: python -m unittest discover -s tests -p 'test_*.py' -v
