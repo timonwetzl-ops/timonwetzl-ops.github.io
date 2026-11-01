@@ -158,10 +158,12 @@
     return b.eventDate || "";
   }
   import {
-    collection, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc
+    collection, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc, runTransaction
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { createStore } from "./booking-store.js";
+  const bookingStore = createStore({ collection, getDocs, doc, runTransaction, serverTimestamp: () => null }, db);
   import {
-    signInWithEmailAndPassword, onAuthStateChanged
+    signInWithEmailAndPassword, onAuthStateChanged, signOut
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 
@@ -179,7 +181,7 @@
 
   function checkAdminAuth(){
     onAuthStateChanged(auth, (user)=>{
-      if(user && user.email === ADMIN_EMAIL){
+      if(user && user.email === ADMIN_EMAIL && user.emailVerified){
         document.getElementById("adminLoginGate").style.display = "none";
         document.getElementById("app").style.display = "block";
         loadAll();
@@ -197,8 +199,9 @@
     err.textContent = "";
     try{
       const cred = await signInWithEmailAndPassword(auth, email, password);
-      if(cred.user.email !== ADMIN_EMAIL){
-        err.textContent = "Dieses Konto hat keine Admin-Rechte.";
+      if(cred.user.email !== ADMIN_EMAIL || !cred.user.emailVerified){
+        await signOut(auth);
+        err.textContent = "Nur das bestätigte Admin-Konto hat Zugriff.";
         return;
       }
     }catch(e){
@@ -315,18 +318,13 @@
   }
 
   window.updateBookingStatus = async function(id, bookingStatus){
-    await updateDoc(doc(db,"bookings",id), {bookingStatus});
-    // Kalender synchron halten: abgelehnt = Zeitraum wieder frei, sonst wieder gesperrt
     try{
-      if(bookingStatus === "abgelehnt"){
-        await deleteDoc(doc(db,"blocked",id));
-      } else {
-        const snap = await getDoc(doc(db,"bookings",id));
-        const b = snap.data();
-        if(b && b.startDate) await setDoc(doc(db,"blocked",id), { startDate: b.startDate, endDate: b.endDate || b.startDate, uid: b.uid || "" });
-      }
-    }catch(e){ console.warn("Sperrliste konnte nicht angepasst werden", e); }
-    loadBookings();
+      await bookingStore.setStatus(id, bookingStatus);
+      await loadBookings();
+    }catch(e){
+      alert(e.message || "Der Buchungsstatus konnte nicht geändert werden.");
+      await loadBookings();
+    }
   }
   window.updatePaymentStatus = async function(id, paymentStatus){
     const updateData = {paymentStatus};
