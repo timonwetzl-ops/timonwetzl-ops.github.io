@@ -20,6 +20,18 @@
     <div class="eyebrow">Dein Konto</div>
     <h2 class="section-title">Meine Buchungen</h2>
     <div id="bookingsList"><p class="center-note">Lädt…</p></div>
+
+    <section class="panel" style="margin-top:42px;">
+      <div class="eyebrow">Verwalten</div>
+      <h3 style="margin:0 0 8px;">Kontoeinstellungen</h3>
+      <p style="color:var(--cream-dim);font-size:.9rem;margin:0 0 16px;">
+        Hier kannst du dein Candy-Bar-Kundenkonto dauerhaft löschen.
+        Bestehende Buchungen werden dadurch nicht storniert und bleiben zunächst als Buchungsunterlagen erhalten.
+      </p>
+      <button class="btn block" id="deleteAccountBtn" type="button"
+        style="background:#a83248;border-color:#a83248;color:#fff;">Konto dauerhaft löschen</button>
+      <p id="deleteAccountMsg" role="status" style="font-size:.9rem;margin:10px 0 0;"></p>
+    </section>
   </section>
 </main>
 
@@ -29,7 +41,7 @@
   import { renderNav, renderFooter } from "./nav.js";
   import { db, auth } from "./firebase-init.js";
   import { collection, query, where, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { onAuthStateChanged, deleteUser } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import { nice } from "./booking-logic.js";
 
   function dateText(b){
@@ -47,6 +59,42 @@
       return;
     }
     loadBookings(user.uid);
+  });
+
+  // Konto löschen: Buchungsunterlagen werden bewusst nicht automatisch entfernt.
+  document.getElementById("deleteAccountBtn").addEventListener("click", async () => {
+    const user = auth.currentUser;
+    const msg = document.getElementById("deleteAccountMsg");
+    const btn = document.getElementById("deleteAccountBtn");
+    if (!user) {
+      msg.textContent = "Du bist nicht angemeldet. Bitte melde dich erneut an.";
+      return;
+    }
+
+    const firstConfirm = confirm(
+      "Möchtest du dein Kundenkonto wirklich dauerhaft löschen? Diese Aktion kann nicht rückgängig gemacht werden. Deine bestehenden Buchungen werden dadurch nicht storniert."
+    );
+    if (!firstConfirm) return;
+
+    const secondConfirm = prompt('Zur endgültigen Bestätigung schreibe bitte LÖSCHEN:');
+    if (secondConfirm !== "LÖSCHEN") {
+      msg.textContent = "Löschen abgebrochen.";
+      return;
+    }
+
+    btn.disabled = true;
+    msg.textContent = "Konto wird gelöscht …";
+    try {
+      await deleteUser(user);
+      location.href = "index.html";
+    } catch (e) {
+      btn.disabled = false;
+      if (e && e.code === "auth/requires-recent-login") {
+        msg.textContent = "Deine Anmeldung ist nicht mehr aktuell. Bitte melde dich ab, wieder an und versuche das Löschen danach erneut.";
+      } else {
+        msg.textContent = "Das Konto konnte nicht gelöscht werden. Bitte versuche es erneut. " + (e?.code || "");
+      }
+    }
   });
 
   async function getStripeLink(packageName){
