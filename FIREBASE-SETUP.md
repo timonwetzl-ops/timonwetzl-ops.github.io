@@ -29,6 +29,10 @@ Die Firestore-Transaktion setzt Buchung, Kalendersperre und Tages-Sperren gemein
 - **Alte Buchungen:** Vor einer Umstellung müssen bestehende Buchungen berücksichtigt und ihre Zeiträume gesperrt werden.
 - **Bild-Uploads:** Storage ist derzeit nicht eingerichtet; Uploads funktionieren deshalb nicht verlässlich.
 
+## Lokaler Logiktest
+
+Unter `tests/booking-locks.html` liegt ein kleiner Browser-Test für die Datums- und Halbtagssperren. Die Datei kann lokal zusammen mit `booking-logic.js` geöffnet werden. Sie prüft nur die reine Logik, nicht die Firebase-Sicherheitsregeln oder echte Transaktionen.
+
 ## Nächster sinnvoller Schritt
 
 Die Buchungslogik braucht einen kleinen vertrauenswürdigen Backend-Endpunkt. Erst danach sollten die Regeln getestet und veröffentlicht werden. Bis dahin bleibt die bisherige Live-Website auf `main` unverändert.
