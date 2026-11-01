@@ -88,27 +88,38 @@ export function createAvailability(blocks, firstBookable) {
 }
 
 // ---------- Auswahl im Kalender (Klick-Verhalten und Einfärbung) ----------
-// state = { first, last, phase }   phase: "none" | "extending" | "done"
+// state = { first, last, phase }   phase: "none" | "active"
+// Die Auswahl ist immer EIN zusammenhängender Zeitraum von first bis last.
 export const emptySelection = () => ({ first: null, last: null, phase: "none" });
 
 export function pickDay(state, iso, av) {
-  if (state.phase !== "extending") {
-    // neue Auswahl beginnen (ersetzt eine frühere – es gibt immer nur EINEN Zeitraum)
-    return av.validEventRange(iso, iso) ? { first: iso, last: iso, phase: "extending" } : state;
+  const range = (a, b) => ({ first: a, last: b, phase: "active" });
+  const single = d => (av.validEventRange(d, d) ? range(d, d) : state);
+  const { first, last } = state;
+
+  if (!first) return single(iso);                                  // noch nichts gewählt: dieser Tag
+
+  if (first === last) {                                            // genau 1 Tag gewählt
+    if (iso === first) return emptySelection();                    // nochmal antippen = abwählen
+    if (iso > first) return av.validEventRange(first, iso) ? range(first, iso) : single(iso);   // z. B. 19. und dann 22.
+    return av.validEventRange(iso, first) ? range(iso, first) : single(iso);                    // erst 22., dann 19.
   }
-  if (iso === state.first) return { ...state, phase: "done" };           // nur ein Veranstaltungstag
-  if (iso < state.first) {
-    return av.validEventRange(iso, iso) ? { first: iso, last: iso, phase: "extending" } : state;
+
+  // Zeitraum mit mindestens 2 Tagen
+  if (iso === addDays(last, 1)) return av.validEventRange(first, iso) ? range(first, iso) : single(iso);   // 1 Tag länger
+  if (iso === addDays(first, -1)) return av.validEventRange(iso, last) ? range(iso, last) : single(iso);  // 1 Tag früher
+  if (iso >= first && iso <= last) {                               // Tag innerhalb: Zeitraum kürzen
+    if (iso === last) return range(first, addDays(last, -1));     // letzten Tag antippen = einen Tag weniger
+    if (iso === first) return range(addDays(first, 1), last);      // ersten Tag antippen = einen Tag weniger
+    return range(first, iso);                                      // mittendrin: bis hierhin kürzen
   }
-  if (av.validEventRange(state.first, iso)) return { first: state.first, last: iso, phase: "done" };
-  return state;                                                          // Lücke/Belegung dazwischen: ignorieren
+  return single(iso);                                              // etwas anderes: zurücksetzen auf diesen Tag
 }
 
+// Ein Tag ist gesperrt, wenn ein Antippen nichts bewirken würde
 export function dayDisabled(state, iso, av) {
-  if (state.phase !== "extending") return !av.validEventRange(iso, iso);
-  if (iso === state.first) return false;
-  if (iso < state.first) return !av.validEventRange(iso, iso);
-  return !av.validEventRange(state.first, iso);
+  if (state.first && iso >= state.first && iso <= state.last) return false;   // eigene Auswahl bleibt antippbar
+  return pickDay(state, iso, av) === state;
 }
 
 // Klasse für die Farbe eines Kalendertags

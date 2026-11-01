@@ -17,21 +17,33 @@
 
 <main>
   <section style="display:flex;justify-content:center;">
-    <div class="panel" style="max-width:420px;width:100%;">
+    <div class="panel" style="max-width:420px;width:100%;" id="authPanel">
       <h2 id="authTitle" class="section-title" style="margin-bottom:20px;">Anmelden</h2>
       <div class="authField">
-        <label>E-Mail</label>
-        <input type="email" id="auth_email">
+        <label for="auth_email">E-Mail</label>
+        <input type="email" id="auth_email" autocomplete="email">
       </div>
       <div class="authField">
-        <label>Passwort</label>
-        <input type="password" id="auth_password">
+        <label for="auth_password">Passwort</label>
+        <input type="password" id="auth_password" autocomplete="current-password">
       </div>
-      <button class="btn block" onclick="submitAuth()" id="authSubmitBtn">Anmelden</button>
-      <div id="authError"></div>
+      <div class="authField" id="pwHint" style="display:none;margin-top:-6px;color:var(--cream-dim);font-size:.82rem">Mindestens 6 Zeichen.</div>
+      <button class="btn block" id="authSubmitBtn">Anmelden</button>
+      <div id="authError" role="alert"></div>
+      <div class="authSwitch" id="forgotRow"><a id="forgotLink">Passwort vergessen?</a></div>
       <div class="authSwitch" id="authSwitchText">
-        Noch kein Konto? <a onclick="toggleAuthMode()">Jetzt registrieren</a>
+        Noch kein Konto? <a id="switchLink">Jetzt registrieren</a>
       </div>
+    </div>
+
+    <div class="panel" style="max-width:420px;width:100%;display:none;" id="verifyPanel">
+      <h2 class="section-title" style="margin-bottom:14px;">Bestätige deine E-Mail</h2>
+      <p id="verifyText" style="color:var(--cream-dim);margin:0 0 6px"></p>
+      <p style="color:var(--cream-dim);margin:0;font-size:.9rem">Öffne die E-Mail und tippe auf den Link darin. Schau auch im Spam-Ordner nach. Danach kommst du automatisch weiter oder tippst auf den Knopf.</p>
+      <button class="btn block" id="verifyDoneBtn" type="button">Ich habe bestätigt</button>
+      <button class="btn block outline" id="resendBtn" type="button">E-Mail erneut senden</button>
+      <div id="verifyMsg" role="status" style="margin-top:12px;font-size:.9rem;min-height:1.2em"></div>
+      <div class="authSwitch"><a id="verifyOther">Andere E-Mail-Adresse verwenden</a></div>
     </div>
   </section>
 </main>
@@ -42,21 +54,30 @@
   import { renderNav, renderFooter } from "./nav.js";
   import { auth } from "./firebase-init.js";
   import {
-    createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged
+    createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification,
+    sendPasswordResetEmail, signOut, onAuthStateChanged
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
   renderNav("anmelden.html");
   renderFooter();
 
-  let authMode = "login";
+  const $ = id => document.getElementById(id);
+  const POLL_MS = 4000;       // alle 4 Sekunden nachsehen, ob der Link angeklickt wurde
+  const COOLDOWN_S = 60;      // so lange kann man die E-Mail nicht nochmal anfordern
 
-  window.toggleAuthMode = function(){
-    authMode = authMode === "login" ? "register" : "login";
-    document.getElementById("authTitle").textContent = authMode === "login" ? "Anmelden" : "Registrieren";
-    document.getElementById("authSubmitBtn").textContent = authMode === "login" ? "Anmelden" : "Konto erstellen";
-    document.getElementById("authSwitchText").innerHTML = authMode === "login"
-      ? `Noch kein Konto? <a onclick="toggleAuthMode()">Jetzt registrieren</a>`
-      : `Schon ein Konto? <a onclick="toggleAuthMode()">Jetzt anmelden</a>`;
+  let authMode = "login";
+  let pendingUser = null, pollTimer = null, cooldownTimer = null, cooldownEnd = 0;
+
+  // ---------- verständliche Fehlermeldungen ----------
+  function friendly(e){
+    const c = (e && e.code) || "";
+    if(c === "auth/email-already-in-use") return "Zu dieser E-Mail gibt es schon ein Konto. Bitte melde dich an (oder nutze „Passwort vergessen“).";
+    if(c === "auth/invalid-email") return "Diese E-Mail-Adresse sieht nicht richtig aus.";
+    if(c === "auth/weak-password") return "Das Passwort ist zu kurz. Bitte mindestens 6 Zeichen.";
+    if(c === "auth/invalid-credential" || c === "auth/wrong-password" || c === "auth/user-not-found") return "E-Mail oder Passwort stimmt nicht.";
+    if(c === "auth/too-many-requests") return "Zu viele Versuche. Bitte warte ein paar Minuten und probiere es dann nochmal.";
+    if(c === "auth/network-request-failed") return "Keine Verbindung. Bitte prüfe dein Internet.";
+    return "Das hat leider nicht geklappt. Bitte versuche es nochmal.";
   }
 
   function buildReturnUrl(){
@@ -66,27 +87,135 @@
     return pkg ? `${next}?package=${encodeURIComponent(pkg)}` : next;
   }
 
-  window.submitAuth = async function(){
-    const email = document.getElementById("auth_email").value;
-    const password = document.getElementById("auth_password").value;
-    const err = document.getElementById("authError");
-    err.textContent = "";
-    try{
-      if(authMode === "login"){
-        await signInWithEmailAndPassword(auth, email, password);
-      } else {
-        await createUserWithEmailAndPassword(auth, email, password);
-      }
-      location.href = buildReturnUrl();
-    }catch(e){
-      err.textContent = "Das hat nicht geklappt: " + (e.message || "unbekannter Fehler");
-    }
+  // ---------- Anmelden / Registrieren umschalten ----------
+  function setMode(mode){
+    authMode = mode;
+    const reg = mode === "register";
+    $("authTitle").textContent = reg ? "Registrieren" : "Anmelden";
+    $("authSubmitBtn").textContent = reg ? "Konto erstellen" : "Anmelden";
+    $("auth_password").autocomplete = reg ? "new-password" : "current-password";
+    $("pwHint").style.display = reg ? "block" : "none";
+    $("forgotRow").style.display = reg ? "none" : "block";
+    $("authSwitchText").innerHTML = reg
+      ? `Schon ein Konto? <a id="switchLink">Jetzt anmelden</a>`
+      : `Noch kein Konto? <a id="switchLink">Jetzt registrieren</a>`;
+    $("switchLink").addEventListener("click", () => { $("authError").textContent = ""; setMode(reg ? "login" : "register"); });
+  }
+  $("switchLink").addEventListener("click", () => { $("authError").textContent = ""; setMode("register"); });
+
+  // ---------- Bestätigungs-Ansicht ----------
+  function startCooldown(){
+    cooldownEnd = Date.now() + COOLDOWN_S * 1000;
+    clearInterval(cooldownTimer);
+    const tick = () => {
+      const left = Math.ceil((cooldownEnd - Date.now()) / 1000);
+      const btn = $("resendBtn");
+      if(left > 0){ btn.disabled = true; btn.textContent = `Nochmal senden in ${left} s`; }
+      else { btn.disabled = false; btn.textContent = "E-Mail erneut senden"; clearInterval(cooldownTimer); }
+    };
+    tick();
+    cooldownTimer = setInterval(tick, 1000);
   }
 
+  function showVerify(user, justSent){
+    pendingUser = user;
+    $("authPanel").style.display = "none";
+    $("verifyPanel").style.display = "block";
+    $("verifyText").innerHTML = justSent
+      ? `Wir haben eine E-Mail an <strong></strong> geschickt.`
+      : `Deine E-Mail <strong></strong> ist noch nicht bestätigt. Du kannst dir die E-Mail nochmal schicken lassen.`;
+    $("verifyText").querySelector("strong").textContent = user.email;
+    $("verifyMsg").textContent = "";
+    if(justSent) startCooldown();
+    clearInterval(pollTimer);
+    pollTimer = setInterval(() => checkVerified(true), POLL_MS);
+  }
+
+  async function checkVerified(auto){
+    if(!pendingUser) return;
+    try{ await pendingUser.reload(); }catch(e){ /* kurz offline: später nochmal */ }
+    if(pendingUser.emailVerified){
+      clearInterval(pollTimer);
+      try{ await pendingUser.getIdToken(true); }catch(e){}   // damit die Freigabe sofort gilt
+      location.href = buildReturnUrl();
+      return;
+    }
+    if(!auto){
+      $("verifyMsg").style.color = "var(--pink)";
+      $("verifyMsg").textContent = "Deine E-Mail ist noch nicht bestätigt. Bitte tippe zuerst auf den Link in der E-Mail.";
+    }
+  }
+  $("verifyDoneBtn").addEventListener("click", () => checkVerified(false));
+
+  $("resendBtn").addEventListener("click", async () => {
+    if(!pendingUser) return;
+    try{
+      await sendEmailVerification(pendingUser);
+      $("verifyMsg").style.color = "var(--mint)";
+      $("verifyMsg").textContent = "Wir haben dir die E-Mail nochmal geschickt.";
+      startCooldown();
+    }catch(e){
+      $("verifyMsg").style.color = "var(--pink)";
+      $("verifyMsg").textContent = friendly(e);
+    }
+  });
+
+  $("verifyOther").addEventListener("click", async () => {
+    clearInterval(pollTimer); clearInterval(cooldownTimer);
+    pendingUser = null;
+    try{ await signOut(auth); }catch(e){}
+    $("verifyPanel").style.display = "none";
+    $("authPanel").style.display = "block";
+    $("auth_email").value = ""; $("auth_password").value = "";
+    $("authError").textContent = "";
+    setMode("register");
+  });
+
+  // ---------- Absenden ----------
+  $("authSubmitBtn").addEventListener("click", submitAuth);
+  [$("auth_email"), $("auth_password")].forEach(el => el.addEventListener("keydown", e => { if(e.key === "Enter") submitAuth(); }));
+
+  async function submitAuth(){
+    const email = $("auth_email").value.trim();
+    const password = $("auth_password").value;
+    const err = $("authError");
+    err.textContent = "";
+    if(!email || !password){ err.textContent = "Bitte gib E-Mail und Passwort ein."; return; }
+    $("authSubmitBtn").disabled = true;
+    try{
+      if(authMode === "login"){
+        const cred = await signInWithEmailAndPassword(auth, email, password);
+        if(cred.user.emailVerified) { location.href = buildReturnUrl(); return; }
+        showVerify(cred.user, false);                       // Konto da, aber E-Mail noch nicht bestätigt
+      } else {
+        const cred = await createUserWithEmailAndPassword(auth, email, password);
+        try{ await sendEmailVerification(cred.user); }
+        catch(e){ /* Konto steht; der Kunde kann in der nächsten Ansicht nochmal senden lassen */ }
+        showVerify(cred.user, true);
+      }
+    }catch(e){
+      err.textContent = friendly(e);
+    }
+    $("authSubmitBtn").disabled = false;
+  }
+
+  // ---------- Passwort vergessen ----------
+  $("forgotLink").addEventListener("click", async () => {
+    const email = $("auth_email").value.trim();
+    const err = $("authError");
+    if(!email){ err.style.color = "var(--pink)"; err.textContent = "Bitte schreibe oben deine E-Mail-Adresse hin, dann schicken wir dir den Link."; return; }
+    try{ await sendPasswordResetEmail(auth, email); }catch(e){ if(e && e.code === "auth/invalid-email"){ err.style.color = "var(--pink)"; err.textContent = friendly(e); return; } }
+    err.style.color = "var(--mint)";
+    err.textContent = "Falls es zu dieser E-Mail ein Konto gibt, haben wir dir eine E-Mail zum Zurücksetzen geschickt.";
+  });
+
+  // ---------- Schon angemeldet? ----------
   onAuthStateChanged(auth, (user)=>{
-    if(user){
-      const params = new URLSearchParams(location.search);
-      if(params.get("next")) location.href = buildReturnUrl();
+    if(!user || pendingUser) return;
+    if(user.emailVerified){
+      if(new URLSearchParams(location.search).get("next")) location.href = buildReturnUrl();
+    } else {
+      showVerify(user, false);                              // angemeldet, aber noch nicht bestätigt
     }
   });
 </script>

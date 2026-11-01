@@ -42,7 +42,7 @@
   renderFooter();
 
   onAuthStateChanged(auth, (user)=>{
-    if(!user){
+    if(!user || !user.emailVerified){
       location.href = "anmelden.html?next=meine-buchungen.html";
       return;
     }

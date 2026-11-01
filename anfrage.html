@@ -43,7 +43,7 @@
       <label>Gewünschtes Paket</label>
       <select id="f_package"></select>
 
-      <label>Veranstaltungszeitraum (ersten und letzten Veranstaltungstag auswählen)</label>
+      <label>Veranstaltungszeitraum (Tage antippen – mehrere Tage hintereinander sind möglich)</label>
       <div class="cal" id="calendar"></div>
       <div class="cal-legend">
         <span class="l-sel">Veranstaltungstag (voller Tag)</span>
@@ -51,7 +51,7 @@
         <span class="l-full">nicht verfügbar</span>
         <span class="l-half">halb belegt</span>
       </div>
-      <div class="cal-selected" id="calSelected">Bitte wähle den ersten Veranstaltungstag.</div>
+      <div class="cal-selected" id="calSelected">Bitte tippe deinen ersten Veranstaltungstag an.</div>
       <button type="button" class="cal-reset" id="calReset" style="display:none">Auswahl zurücksetzen</button>
       <div class="cal-note">Der Tag vor deiner Veranstaltung ist für die Abholung und der Tag danach für die Rückgabe vorgesehen. Diese halben Tage sind kostenlos und werden nicht als zusätzliche Miettage berechnet.</div>
 
@@ -97,9 +97,9 @@
 
   let started = false;
   onAuthStateChanged(auth, (user)=>{
-    currentUser = user;                       // kann auch leer sein: Buchen geht ohne Konto
-    if(user) document.getElementById("f_email").value = user.email;
-    document.getElementById("guestHint").style.display = user ? "none" : "block";
+    currentUser = (user && user.emailVerified) ? user : null;   // ohne bestätigte E-Mail zählt man als Gast
+    if(currentUser) document.getElementById("f_email").value = currentUser.email;
+    document.getElementById("guestHint").style.display = currentUser ? "none" : "block";
     if(!started){ started = true; init(); }
   });
 
@@ -208,11 +208,11 @@
     const el = document.getElementById("calSelected");
     el.style.color = "var(--cream)";
     document.getElementById("calReset").style.display = sel.first ? "inline" : "none";
-    if(!sel.first){ el.textContent = "Bitte wähle den ersten Veranstaltungstag."; return; }
+    if(!sel.first){ el.textContent = "Bitte tippe deinen ersten Veranstaltungstag an."; return; }
     const { pickup, ret } = B.periodFor(sel.first, sel.last);
     const range = sel.first === sel.last ? B.nice(sel.first) : `${B.nice(sel.first)} bis ${B.nice(sel.last)}`;
     let txt = `Veranstaltung: ${range} · Abholung: ${B.nice(pickup)} · Rückgabe: ${B.nice(ret)}`;
-    if(sel.phase === "extending") txt += " — Tippe jetzt den letzten Veranstaltungstag an, oder denselben Tag nochmal, wenn es nur ein Tag ist.";
+    if(sel.first === sel.last) txt += " — Für mehrere Tage tippe den letzten Tag an oder die folgenden Tage nacheinander.";
     el.textContent = txt;
   }
 
