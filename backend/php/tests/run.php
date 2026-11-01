@@ -53,7 +53,7 @@ foreach ($invalidDates as $date) check(!valid_iso_date($date), "Ungültiges Datu
 for ($i = 1; $i <= 5; $i++) {
     $d = sprintf('2027-05-%02d', $i);
     check(shift_date($d, 1) === sprintf('2027-05-%02d', $i + 1), "Datum plus ein Tag {$d}");
-    check(shift_date($d, -1) === sprintf('2027-04-%02d', 30 + $i), "Datum minus ein Tag {$d}");
+    check(shift_date($d, -1) === (new DateTimeImmutable($d))->modify('-1 day')->format('Y-m-d'), "Datum minus ein Tag {$d}");
 }
 
 // 15 input and boundary assertions.
