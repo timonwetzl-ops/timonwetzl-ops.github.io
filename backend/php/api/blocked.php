@@ -13,7 +13,7 @@ try {
         "SELECT lock_date,
                 MAX(half = 'am') AS am_taken,
                 MAX(half = 'pm') AS pm_taken
-         FROM booking_locks
+         FROM booking_lock_halves
          GROUP BY lock_date
          ORDER BY lock_date"
     );
