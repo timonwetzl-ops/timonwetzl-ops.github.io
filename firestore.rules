@@ -1,0 +1,114 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && request.auth.token.email == "vermietung.candybar@gmail.com"
+        && request.auth.token.email_verified == true;
+    }
+
+    function ownsBooking(id) {
+      return signedIn()
+        && getAfter(/databases/$(database)/documents/bookings/$(id)).data.uid == request.auth.uid;
+    }
+
+    function validLockValue(field) {
+      return !(field in request.resource.data)
+        || request.resource.data[field] == null
+        || ownsBooking(request.resource.data[field]);
+    }
+
+    match /packages/{packageId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /config/{configId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /bookings/{bookingId} {
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.bookingStatus == "neu"
+        && request.resource.data.paymentStatus == "offen"
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 120
+        && request.resource.data.email is string
+        && request.resource.data.email.size() <= 254
+        && request.resource.data.phone is string
+        && request.resource.data.location is string
+        && request.resource.data.package is string
+        && request.resource.data.firstEventDay is string
+        && request.resource.data.lastEventDay is string
+        && request.resource.data.eventStart == request.resource.data.firstEventDay
+        && request.resource.data.eventEnd == request.resource.data.lastEventDay
+        && request.resource.data.startDate is string
+        && request.resource.data.endDate is string
+        && request.resource.data.price is number
+        && request.resource.data.deposit == 100
+        && request.resource.data.message is string
+        && request.resource.data.keys().hasOnly([
+          "uid", "name", "email", "phone", "location", "package",
+          "firstEventDay", "lastEventDay", "eventStart", "eventEnd",
+          "eventDays", "startDate", "endDate", "eventDate", "basePrice",
+          "extraDayPrice", "price", "deposit", "message", "bookingStatus",
+          "paymentStatus", "paidAmount", "createdAt"
+        ]);
+      allow read: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    // Nur Datumsangaben, keine Namen, E-Mails oder Telefonnummern.
+    match /blocked/{bookingId} {
+      allow read: if true;
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && ownsBooking(bookingId)
+        && request.resource.data.startDate is string
+        && request.resource.data.endDate is string
+        && request.resource.data.keys().hasOnly([
+          "uid", "startDate", "endDate", "eventStart", "eventEnd"
+        ]);
+      allow update, delete: if isAdmin();
+    }
+
+    // Sperren werden in derselben Transaktion wie die Buchung geschrieben.
+    match /dayLocks/{dateId} {
+      allow read: if true;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(["am", "pm", "full"])
+        && validLockValue("am")
+        && validLockValue("pm")
+        && validLockValue("full");
+      allow update: if signedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["am", "pm", "full"])
+        && validLockValue("am")
+        && validLockValue("pm")
+        && validLockValue("full");
+      allow delete: if isAdmin();
+    }
+
+    match /contacts/{contactId} {
+      allow create: if request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 120
+        && request.resource.data.email is string
+        && request.resource.data.email.size() <= 254
+        && request.resource.data.message is string
+        && request.resource.data.message.size() > 0
+        && request.resource.data.message.size() <= 5000
+        && request.resource.data.keys().hasOnly([
+          "name", "email", "address", "subject", "message", "createdAt"
+        ]);
+      allow read, update, delete: if isAdmin();
+    }
+  }
+}
