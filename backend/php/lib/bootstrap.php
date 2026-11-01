@@ -59,7 +59,9 @@ function clean_text(mixed $value, int $max): string
 {
     if (!is_string($value)) return '';
     $value = trim($value);
-    return mb_substr($value, 0, $max, 'UTF-8');
+    // mbstring ist auf Shared-Hosting nicht garantiert aktiviert.
+    if (function_exists('mb_substr')) return mb_substr($value, 0, $max, 'UTF-8');
+    return substr($value, 0, $max);
 }
 
 function valid_iso_date(mixed $value): bool
