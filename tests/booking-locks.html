@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Test – Buchungssperren</title>
+  <style>
+    body{font:16px system-ui,sans-serif;max-width:760px;margin:40px auto;padding:0 18px;background:#f7f4ef;color:#29251f}
+    li{padding:8px 0}.ok{color:#176b3a}.fail{color:#b42318}code{background:#e9e4dc;padding:2px 5px;border-radius:4px}
+  </style>
+</head>
+<body>
+  <h1>Tests der Buchungssperren</h1>
+  <p>Diese Seite prüft die reine Datums-/Slotlogik. Sie testet ausdrücklich nicht Firebase-Regeln oder echte Datenbanktransaktionen.</p>
+  <ol id="results"></ol>
+  <p id="summary"></p>
+  <script type="module">
+    import { lockPlan, slotConflict } from "./booking-logic.js";
+
+    const results = document.getElementById("results");
+    let passed = 0;
+    let failed = 0;
+
+    function test(name, fn) {
+      const item = document.createElement("li");
+      try {
+        fn();
+        item.className = "ok";
+        item.textContent = "✓ " + name;
+        passed++;
+      } catch (error) {
+        item.className = "fail";
+        item.textContent = "✗ " + name + " – " + error.message;
+        failed++;
+      }
+      results.append(item);
+    }
+
+    function equal(actual, expected) {
+      if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+        throw new Error("Erwartet " + JSON.stringify(expected) + ", erhalten " + JSON.stringify(actual));
+      }
+    }
+
+    test("Ein Veranstaltungstag sperrt Abholung, Event und Rückgabe", () => {
+      equal(lockPlan("2027-05-10", "2027-05-10"), [
+        { date: "2027-05-09", slot: "pm" },
+        { date: "2027-05-10", slot: "full" },
+        { date: "2027-05-11", slot: "am" }
+      ]);
+    });
+
+    test("Mehrere Veranstaltungstage sperren jeden Eventtag vollständig", () => {
+      equal(lockPlan("2027-05-10", "2027-05-12"), [
+        { date: "2027-05-09", slot: "pm" },
+        { date: "2027-05-10", slot: "full" },
+        { date: "2027-05-11", slot: "full" },
+        { date: "2027-05-12", slot: "full" },
+        { date: "2027-05-13", slot: "am" }
+      ]);
+    });
+
+    test("Zwei Buchungen können denselben Tag nicht beide ganztägig nutzen", () => {
+      if (!slotConflict({ full: "A" }, "full")) throw new Error("Ganztagssperre wurde übersehen");
+    });
+
+    test("Abholung am Nachmittag blockiert keine Rückgabe am Vormittag", () => {
+      if (slotConflict({ pm: "A" }, "am")) throw new Error("Unabhängige Halbtagsslots wurden fälschlich blockiert");
+    });
+
+    test("Ganztägige Buchung kollidiert mit Vormittags- und Nachmittagssperre", () => {
+      if (!slotConflict({ am: "A" }, "full")) throw new Error("Vormittagssperre wurde übersehen");
+      if (!slotConflict({ pm: "A" }, "full")) throw new Error("Nachmittagssperre wurde übersehen");
+    });
+
+    test("Eine Rückgabe am Vormittag kollidiert nicht mit Abholung am Nachmittag", () => {
+      if (slotConflict({ pm: "A" }, "am")) throw new Error("PM/AM-Trennung funktioniert nicht");
+    });
+
+    document.getElementById("summary").textContent =
+      passed + " bestanden, " + failed + " fehlgeschlagen.";
+  </script>
+</body>
+</html>
