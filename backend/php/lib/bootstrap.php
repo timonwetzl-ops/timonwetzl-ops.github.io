@@ -88,3 +88,21 @@ function date_slots(string $eventStart, string $eventEnd): array
     $slots[] = [shift_date($eventEnd, 1), 'am'];
     return $slots;
 }
+
+
+function booking_price_cents(array $bookingConfig, string $packageId, int $eventDays): int
+{
+    if ($eventDays < 1 || $eventDays > (int)$bookingConfig['max_event_days']) {
+        throw new InvalidArgumentException('Ungültige Anzahl Veranstaltungstage.');
+    }
+    $packages = $bookingConfig['packages'] ?? [];
+    if (!isset($packages[$packageId]['price_cents'])) {
+        throw new InvalidArgumentException('Unbekanntes Paket.');
+    }
+    $base = (int)$packages[$packageId]['price_cents'];
+    $extra = (int)$bookingConfig['extra_day_price_cents'];
+    if ($base < 0 || $extra < 0) {
+        throw new InvalidArgumentException('Ungültige Preis-Konfiguration.');
+    }
+    return $base + (($eventDays - 1) * $extra);
+}
