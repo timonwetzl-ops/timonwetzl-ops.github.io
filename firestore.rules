@@ -18,7 +18,7 @@ service cloud.firestore {
     }
 
     function changedLockIsValid(field) {
-      return !(field in request.resource.data.diff(resource.data).affectedKeys())
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([field])
         || request.resource.data[field] == null
         || ownsBooking(request.resource.data[field]);
     }
