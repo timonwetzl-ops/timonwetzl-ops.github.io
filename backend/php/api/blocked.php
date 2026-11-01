@@ -9,13 +9,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 }
 
 try {
+    // Publish dates only; never expose customer or booking details.
+    // The calendar uses the afternoon before the event and morning after it.
     $stmt = db()->query(
-        "SELECT lock_date,
-                MAX(half = 'am') AS am_taken,
-                MAX(half = 'pm') AS pm_taken
-         FROM booking_lock_halves
-         GROUP BY lock_date
-         ORDER BY lock_date"
+        "SELECT pickup_date AS startDate, return_date AS endDate
+         FROM bookings
+         WHERE booking_status <> 'abgelehnt'
+         ORDER BY pickup_date"
     );
     json_response(['blocked' => $stmt->fetchAll()]);
 } catch (Throwable $error) {
