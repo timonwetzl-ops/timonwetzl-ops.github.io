@@ -77,7 +77,8 @@
     if(c === "auth/invalid-credential" || c === "auth/wrong-password" || c === "auth/user-not-found") return "E-Mail oder Passwort stimmt nicht.";
     if(c === "auth/too-many-requests") return "Zu viele Versuche. Bitte warte ein paar Minuten und probiere es dann nochmal.";
     if(c === "auth/network-request-failed") return "Keine Verbindung. Bitte prüfe dein Internet.";
-    return "Das hat leider nicht geklappt. Bitte versuche es nochmal.";
+    if(c === "auth/operation-not-allowed") return "Die Anmeldung mit E-Mail und Passwort ist in Firebase noch nicht eingeschaltet.";
+    return "Das hat leider nicht geklappt. Bitte versuche es nochmal." + (c ? ` (Fehlercode: ${c})` : "");
   }
 
   function buildReturnUrl(){
@@ -117,15 +118,18 @@
     cooldownTimer = setInterval(tick, 1000);
   }
 
-  function showVerify(user, justSent){
+  function showVerify(user, justSent, sendErr){
     pendingUser = user;
     $("authPanel").style.display = "none";
     $("verifyPanel").style.display = "block";
-    $("verifyText").innerHTML = justSent
-      ? `Wir haben eine E-Mail an <strong></strong> geschickt.`
-      : `Deine E-Mail <strong></strong> ist noch nicht bestätigt. Du kannst dir die E-Mail nochmal schicken lassen.`;
+    $("verifyText").innerHTML = sendErr
+      ? `Dein Konto ist angelegt, aber die E-Mail an <strong></strong> konnte nicht verschickt werden.`
+      : justSent
+        ? `Wir haben eine E-Mail an <strong></strong> geschickt.`
+        : `Deine E-Mail <strong></strong> ist noch nicht bestätigt. Du kannst dir die E-Mail nochmal schicken lassen.`;
     $("verifyText").querySelector("strong").textContent = user.email;
-    $("verifyMsg").textContent = "";
+    $("verifyMsg").style.color = "var(--pink)";
+    $("verifyMsg").textContent = sendErr ? friendly(sendErr) + " Tippe unten auf „E-Mail erneut senden“." : "";
     if(justSent) startCooldown();
     clearInterval(pollTimer);
     pollTimer = setInterval(() => checkVerified(true), POLL_MS);
@@ -189,9 +193,10 @@
         showVerify(cred.user, false);                       // Konto da, aber E-Mail noch nicht bestätigt
       } else {
         const cred = await createUserWithEmailAndPassword(auth, email, password);
+        let sendErr = null;
         try{ await sendEmailVerification(cred.user); }
-        catch(e){ /* Konto steht; der Kunde kann in der nächsten Ansicht nochmal senden lassen */ }
-        showVerify(cred.user, true);
+        catch(e){ sendErr = e; }                            // Konto steht, nur das Senden ist schiefgegangen
+        showVerify(cred.user, !sendErr, sendErr);
       }
     }catch(e){
       err.textContent = friendly(e);
