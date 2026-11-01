@@ -71,12 +71,15 @@
 <script type="module">
   import { renderNav, renderFooter } from "./nav.js";
   import { db, auth, placeholderImg } from "./firebase-init.js";
+  import { createStore } from "./booking-store.js";
   import { getAllPackages, getPackage } from "./packages-default.js";
   import * as B from "./booking-logic.js";
   import {
-    collection, getDocs, doc, setDoc, serverTimestamp
+    collection, getDocs, doc, runTransaction, serverTimestamp
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  const bookingStore = createStore({ collection, getDocs, doc, runTransaction, serverTimestamp }, db);
 
   renderNav("anfrage.html");
   renderFooter();
@@ -85,6 +88,7 @@
   const preselected = params.get("package");
 
   let currentUser = null;
+  let isCustomerAccount = false;
   let allPackagesData = [];
   let sel = B.emptySelection();
   let av = B.createAvailability([], "0000-00-00");
@@ -96,10 +100,21 @@
   let calYear = start.getFullYear();
 
   let started = false;
-  onAuthStateChanged(auth, (user)=>{
-    currentUser = (user && user.emailVerified) ? user : null;   // ohne bestätigte E-Mail zählt man als Gast
-    if(currentUser) document.getElementById("f_email").value = currentUser.email;
-    document.getElementById("guestHint").style.display = currentUser ? "none" : "block";
+  onAuthStateChanged(auth, async (user)=>{
+    if(!user){
+      try { await signInAnonymously(auth); }
+      catch(e){
+        console.error("Gast-Anmeldung fehlgeschlagen", e);
+        document.getElementById("formStatus").textContent =
+          "Die Buchung ist momentan nicht verfügbar. Bitte versuche es später erneut.";
+        document.getElementById("formStatus").style.color = "var(--pink)";
+      }
+      return;
+    }
+    currentUser = user; // auch Gäste erhalten eine anonyme Firebase-ID
+    isCustomerAccount = !!(user.email && user.emailVerified);
+    if(isCustomerAccount) document.getElementById("f_email").value = user.email;
+    document.getElementById("guestHint").style.display = isCustomerAccount ? "none" : "block";
     if(!started){ started = true; init(); }
   });
 
@@ -155,11 +170,6 @@
       const snap = await getDocs(collection(db,"blocked"));
       snap.forEach(d => { const b = d.data(); blocks.push({ S: b.startDate, E: b.endDate }); });
     }catch(e){ console.warn("Sperrliste nicht lesbar", e); }
-    // 2) ältere Buchungen (nur für den Admin lesbar, sonst ignorieren)
-    try{
-      const snap = await getDocs(collection(db,"bookings"));
-      snap.forEach(d => { const blk = B.blockOf(d.data()); if(blk) blocks.push(blk); });
-    }catch(e){ /* normale Kunden dürfen nicht alle Buchungen lesen – ist okay */ }
     return blocks;
   }
 
@@ -248,7 +258,7 @@
         status.style.color = "var(--pink)";
         return;
       }
-      // 2) Preis frisch berechnen: aktueller Paketpreis aus der Datenbank + gewählte Tage
+      // 2) Preis frisch berechnen und Buchung + Kalendersperren atomar speichern
       const chosen = currentPackage();
       const pkg = await getPackage(chosen.id);
       const basePrice = B.parsePrice(pkg.price);
@@ -256,46 +266,45 @@
       const total = B.rentalPrice(basePrice, eventDays);
       const { pickup, ret } = B.periodFor(sel.first, sel.last);
 
-      status.textContent = "Wird gesendet…";
-      const bref = doc(collection(db,"bookings"));
-      await setDoc(bref,{
-        uid: currentUser ? currentUser.uid : "",
-        name: document.getElementById("f_name").value,
-        email: document.getElementById("f_email").value,
-        phone: document.getElementById("f_phone").value,
-        location: document.getElementById("f_location").value,
+      status.textContent = "Wird sicher gespeichert…";
+      const bookingRef = doc(collection(db,"bookings"));
+      await bookingStore.reserve(bookingRef.id, {
+        uid: currentUser.uid,
+        name: document.getElementById("f_name").value.trim(),
+        email: document.getElementById("f_email").value.trim(),
+        phone: document.getElementById("f_phone").value.trim(),
+        location: document.getElementById("f_location").value.trim(),
         package: pkg.name,
         firstEventDay: sel.first,
         lastEventDay: sel.last,
+        eventStart: sel.first,
+        eventEnd: sel.last,
         eventDays,
-        startDate: pickup,            // Abholtag (halber Tag)
-        endDate: ret,                 // Rückgabetag (halber Tag)
-        eventDate: sel.first,         // für ältere Ansichten
+        startDate: pickup,
+        endDate: ret,
+        eventDate: sel.first,
         basePrice,
         extraDayPrice: B.EXTRA_DAY_PRICE,
-        price: total,                 // Mietpreis ohne Kaution
-        deposit: B.DEPOSIT,           // Kaution, separat
-        message: document.getElementById("f_message").value,
+        price: total,
+        deposit: B.DEPOSIT,
+        message: document.getElementById("f_message").value.trim(),
         bookingStatus: "neu",
         paymentStatus: "offen",
-        paidAmount: 0,
-        createdAt: serverTimestamp()
+        paidAmount: 0
       });
-      // öffentliche Sperrliste (ohne persönliche Daten) mit gleicher ID
-      try{
-        await setDoc(doc(db,"blocked",bref.id), { startDate: pickup, endDate: ret, uid: currentUser ? currentUser.uid : "" });
-      }catch(err){ console.warn("Sperrliste nicht geschrieben", err); }
 
       status.style.color = "var(--mint)";
-      document.querySelector("#bookingForm button[type=submit]").disabled = true;   // nicht doppelt senden
-      if(currentUser){
-        status.textContent = "Danke! Deine Buchung ist da — schau bald bei 'Meine Buchungen' vorbei.";
+      document.querySelector("#bookingForm button[type=submit]").disabled = true;
+      if(isCustomerAccount){
+        status.textContent = "Danke! Deine Buchung ist eingegangen und der Zeitraum ist vorgemerkt.";
         setTimeout(()=>location.href="meine-buchungen.html", 1400);
       } else {
-        status.textContent = "Danke! Deine Buchung ist angekommen. Wir melden uns per E-Mail bei dir.";
+        status.textContent = "Danke! Deine Buchung ist eingegangen und der Zeitraum ist vorgemerkt. Wir melden uns per E-Mail bei dir.";
       }
     }catch(err){
-      status.textContent = "Ups, das hat nicht geklappt. Versuch's nochmal.";
+      status.textContent = err && err.code === "unavailable"
+        ? "Dieser Zeitraum ist inzwischen vergeben. Bitte wähle einen anderen."
+        : "Ups, das hat nicht geklappt. Versuch's nochmal.";
       status.style.color = "var(--pink)";
       console.error(err);
     }
