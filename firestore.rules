@@ -17,8 +17,8 @@ service cloud.firestore {
         && getAfter(/databases/$(database)/documents/bookings/$(id)).data.uid == request.auth.uid;
     }
 
-    function validLockValue(field) {
-      return !(field in request.resource.data)
+    function changedLockIsValid(field) {
+      return !(field in request.resource.data.diff(resource.data).affectedKeys())
         || request.resource.data[field] == null
         || ownsBooking(request.resource.data[field]);
     }
@@ -90,9 +90,9 @@ service cloud.firestore {
         && validLockValue("full");
       allow update: if signedIn()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["am", "pm", "full"])
-        && validLockValue("am")
-        && validLockValue("pm")
-        && validLockValue("full");
+        && changedLockIsValid("am")
+        && changedLockIsValid("pm")
+        && changedLockIsValid("full");
       allow delete: if isAdmin();
     }
 
