@@ -1,25 +1,34 @@
-# Firebase – Einrichtung für Candy Bar Vogtland
+# Firebase – Status des Buchungssystem-Entwurfs
 
-## Was diese Änderung voraussetzt
+## WICHTIG: Noch nicht veröffentlichen
 
-1. In Firebase Authentication muss **Anonym** als Anmeldemethode aktiviert werden.
-   Die Buchungsseite meldet Gäste damit anonym an, damit jede Buchung eine eigene UID erhält.
-2. Die Regeln aus `firestore.rules` müssen in Firebase Console → Firestore Database → Regeln veröffentlicht werden.
-3. Die Datei `storage.rules` ist vorbereitet, aber Storage ist derzeit im Firebase-Projekt nicht eingerichtet. Sie muss erst veröffentlicht werden, falls Storage später aktiviert wird.
+Dieser Branch ist ein technischer Entwurf und **nicht produktionsbereit**. Bitte die Regeln aus `firestore.rules` noch nicht in Firebase veröffentlichen und den Pull Request nicht zusammenführen.
 
-## Buchungen und Kalender
+Die Firestore-Transaktion setzt Buchung, Kalendersperre und Tages-Sperren gemeinsam. Das schützt den normalen Ablauf über das Buchungsformular vor zeitgleichen Doppelbuchungen. Die Firestore-Regeln erzwingen derzeit aber noch nicht vollständig, dass ein direkter Datenbankzugriff für jeden einzelnen Veranstaltungstag sämtliche korrekten Tages-Sperren setzt. Ein Angreifer könnte diese Prüfung umgehen. Eine reine Browser-Lösung kann das nicht zuverlässig absichern.
 
-- Buchung und öffentliche Kalendersperre werden gemeinsam gespeichert.
-- Zusätzliche Tages-Sperren verhindern konkurrierende Buchungen derselben Zeitabschnitte.
-- Statusänderung und Freigabe/Wiederbelegung werden im Dashboard gemeinsam transaktional ausgeführt.
-- Gäste sehen nur die anonymisierte Sperrliste, keine Buchungsdetails.
-- Kundenkonten können nur eigene Buchungen lesen.
-- Admin-Zugriff setzt das verifizierte Admin-Konto voraus.
+## Was für den Entwurf benötigt wird
 
-## Grenzen ohne Backend
+1. Firebase Authentication: anonyme Anmeldung für Gäste.
+2. Firestore: Regeln erst nach Ergänzung und Test eines vertrauenswürdigen Backend-Endpunkts veröffentlichen.
+3. Storage: Im Firebase-Projekt ist Storage derzeit nicht eingerichtet. Die Datei `storage.rules` allein aktiviert es nicht.
 
-Eine automatische E-Mail an den Betreiber wird von der Website aktuell noch nicht verschickt. Dafür ist ein vertrauenswürdiger Maildienst bzw. Backend nötig. Zugangsdaten für SMTP oder private Mail-API-Schlüssel dürfen nicht in JavaScript im Browser stehen. Diese Änderung behauptet daher nicht, dass E-Mail-Benachrichtigungen bereits funktionieren.
+## Aktueller Funktionsstand
 
-## Wichtig
+- Das Buchungsformular meldet Gäste anonym an.
+- Buchung, öffentlicher Kalendereintrag und Tages-Sperren werden in einer Firestore-Transaktion geschrieben.
+- Die Tages-Sperren unterscheiden Abholung am Nachmittag, Veranstaltungstage ganztägig und Rückgabe am Vormittag.
+- Statusänderungen im Dashboard aktualisieren Buchung und Sperren gemeinsam.
+- Gäste sehen die öffentliche Sperrliste, nicht die privaten Buchungsdetails.
+- Der Admin-Zugriff verlangt das bestätigte Admin-Konto.
 
-Die Regeln und Änderungen zuerst in einer Testumgebung prüfen. Alte Buchungen, die vor Einführung der Tages-Sperren angelegt wurden, müssen bei der Umstellung kontrolliert und gegebenenfalls über das Dashboard erneut gesperrt werden.
+## Noch offen
+
+- **E-Mail-Benachrichtigung:** Es wird noch keine automatische E-Mail bei einer neuen Buchung verschickt. Dafür braucht es einen vertrauenswürdigen Maildienst oder Backend. Private Mail-Zugangsdaten dürfen nicht im Browser-JavaScript liegen.
+- **Serverseitige Buchungsprüfung:** Ein Backend muss Buchungsdaten validieren und alle Tages-Sperren verbindlich setzen.
+- **Tests:** Die Regeln und Transaktionen wurden noch nicht in einer Firebase-Testumgebung ausgeführt.
+- **Alte Buchungen:** Vor einer Umstellung müssen bestehende Buchungen berücksichtigt und ihre Zeiträume gesperrt werden.
+- **Bild-Uploads:** Storage ist derzeit nicht eingerichtet; Uploads funktionieren deshalb nicht verlässlich.
+
+## Nächster sinnvoller Schritt
+
+Die Buchungslogik braucht einen kleinen vertrauenswürdigen Backend-Endpunkt. Erst danach sollten die Regeln getestet und veröffentlicht werden. Bis dahin bleibt die bisherige Live-Website auf `main` unverändert.
