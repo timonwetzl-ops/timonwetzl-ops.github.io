@@ -11,6 +11,16 @@ const PACKAGE_PRICES = {
 const EXTRA_DAY_PRICE = 89;
 const DEPOSIT = 100;
 const MAX_EVENT_DAYS = 14;
+let cachedFirebaseKeys = null;
+let cachedFirebaseKeysUntil = 0;
+
+function todayInBerlin() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Berlin", year: "numeric", month: "2-digit", day: "2-digit"
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return values.year + "-" + values.month + "-" + values.day;
+}
 
 function response(data, status, origin) {
   return new Response(JSON.stringify(data), {
@@ -82,16 +92,23 @@ async function verifyFirebaseToken(request, env) {
   } catch { return null; }
 
   const now = Math.floor(Date.now() / 1000);
+  let tokenHeader;
+  try { tokenHeader = JSON.parse(atob(parts[0].replace(/-/g, "+").replace(/_/g, "/"))); }
+  catch { return null; }
+  if (tokenHeader.alg !== "RS256" || !tokenHeader.kid) return null;
   if (jwt.aud !== env.FIREBASE_PROJECT_ID ||
       jwt.iss !== "https://securetoken.google.com/" + env.FIREBASE_PROJECT_ID ||
       !jwt.sub || jwt.exp <= now || jwt.iat > now + 60 ||
+      (jwt.nbf && jwt.nbf > now) ||
       jwt.email !== env.ADMIN_EMAIL || jwt.email_verified !== true) return null;
 
-  const jwksResponse = await fetch("https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com");
-  if (!jwksResponse.ok) return null;
-  const jwks = await jwksResponse.json();
-  const headerPart = JSON.parse(atob(parts[0].replace(/-/g, "+").replace(/_/g, "/")));
-  const jwk = jwks.keys.find(key => key.kid === headerPart.kid);
+  if (!cachedFirebaseKeys || cachedFirebaseKeysUntil < Date.now()) {
+    const jwksResponse = await fetch("https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com");
+    if (!jwksResponse.ok) return null;
+    cachedFirebaseKeys = await jwksResponse.json();
+    cachedFirebaseKeysUntil = Date.now() + 60 * 60 * 1000;
+  }
+  const jwk = cachedFirebaseKeys.keys.find(key => key.kid === tokenHeader.kid);
   if (!jwk) return null;
 
   try {
@@ -157,8 +174,7 @@ async function createBooking(request, env) {
   }
   const eventDays = daysBetween(start, end) + 1;
   if (eventDays < 1 || eventDays > MAX_EVENT_DAYS) return jsonError("Der Zeitraum ist ungültig oder zu lang.");
-  const today = new Date();
-  const earliest = shiftDate(today.toISOString().slice(0, 10), 14);
+  const earliest = shiftDate(todayInBerlin(), 14);
   if (start < earliest) return jsonError("Buchungen sind frühestens 14 Tage im Voraus möglich.");
 
   if (!await verifyTurnstile(body.turnstileToken, env.TURNSTILE_SECRET_KEY, request.headers.get("cf-connecting-ip"))) {
