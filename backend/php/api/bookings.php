@@ -32,8 +32,6 @@ $packages = $bookingConfig['packages'];
 if (
     $name === '' ||
     !filter_var($email, FILTER_VALIDATE_EMAIL) ||
-    $phone === '' ||
-    $location === '' ||
     !isset($packages[$packageId]) ||
     !valid_iso_date($eventStart) ||
     !valid_iso_date($eventEnd)
@@ -68,6 +66,25 @@ $returnDate = shift_date($eventEnd, 1);
 $id = bin2hex(random_bytes(16));
 
 try {
+    // Privacy-conscious basic rate limit: only a keyed hash of the IP is stored.
+    $secret = (string)($config['security']['rate_limit_secret'] ?? '');
+    if (strlen($secret) < 32 || $secret === 'CHANGE_TO_A_LONG_RANDOM_SECRET') {
+        json_response(['error' => 'Buchungssystem ist noch nicht vollständig konfiguriert.'], 503);
+    }
+    $ip = (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+    $ipHash = hash_hmac('sha256', $ip, $secret);
+    $pdo = db();
+    $pdo->prepare("DELETE FROM booking_attempts WHERE attempted_at < (UTC_TIMESTAMP() - INTERVAL 2 DAY)")->execute();
+    $countStmt = $pdo->prepare(
+        "SELECT COUNT(*) FROM booking_attempts
+         WHERE ip_hash = :ip_hash AND attempted_at >= (UTC_TIMESTAMP() - INTERVAL 1 HOUR)"
+    );
+    $countStmt->execute([':ip_hash' => $ipHash]);
+    if ((int)$countStmt->fetchColumn() >= 5) {
+        json_response(['error' => 'Zu viele Anfragen. Bitte versuche es später erneut.'], 429);
+    }
+    $attemptStmt = $pdo->prepare("INSERT INTO booking_attempts (ip_hash, attempted_at) VALUES (:ip_hash, UTC_TIMESTAMP())");
+    $attemptStmt->execute([':ip_hash' => $ipHash]);
     $pdo = db();
     $pdo->beginTransaction();
 
