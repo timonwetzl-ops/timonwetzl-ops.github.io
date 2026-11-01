@@ -17,10 +17,22 @@ service cloud.firestore {
         && getAfter(/databases/$(database)/documents/bookings/$(id)).data.uid == request.auth.uid;
     }
 
+    function ownsExistingBooking(id) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/bookings/$(id))
+        && get(/databases/$(database)/documents/bookings/$(id)).data.uid == request.auth.uid;
+    }
+
+    function newLockValueIsValid(field) {
+      return !(field in request.resource.data)
+        || ownsBooking(request.resource.data[field]);
+    }
+
     function changedLockIsValid(field) {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny([field])
-        || request.resource.data[field] == null
-        || ownsBooking(request.resource.data[field]);
+        || (request.resource.data[field] == null
+          ? (isAdmin() || ownsExistingBooking(resource.data[field]))
+          : ownsBooking(request.resource.data[field]));
     }
 
     match /packages/{packageId} {
@@ -85,9 +97,9 @@ service cloud.firestore {
       allow read: if true;
       allow create: if signedIn()
         && request.resource.data.keys().hasOnly(["am", "pm", "full"])
-        && validLockValue("am")
-        && validLockValue("pm")
-        && validLockValue("full");
+        && newLockValueIsValid("am")
+        && newLockValueIsValid("pm")
+        && newLockValueIsValid("full");
       allow update: if signedIn()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["am", "pm", "full"])
         && changedLockIsValid("am")
