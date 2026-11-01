@@ -23,8 +23,6 @@
 <main>
   <section>
     <h2 class="section-title">Buchen</h2>
-    <p id="guestHint" style="display:none;color:var(--cream-dim);font-size:.9rem;margin:-20px 0 24px;max-width:680px">Du brauchst dafür kein Konto. Mit einem Konto siehst du deine Buchungen später unter „Meine Buchungen“.</p>
-
     <div id="selectedPkgBox"></div>
 
     <form class="panel" id="bookingForm">
@@ -69,237 +67,79 @@
 <footer class="site-footer" id="site-footer"></footer>
 
 <script type="module">
-  import { renderNav, renderFooter } from "./nav.js";
-  import { db, auth, placeholderImg } from "./firebase-init.js";
-  import { getAllPackages, getPackage } from "./packages-default.js";
-  import * as B from "./booking-logic.js";
-  import {
-    collection, getDocs, doc, setDoc, serverTimestamp
-  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-
-  renderNav("anfrage.html");
-  renderFooter();
-
-  const params = new URLSearchParams(location.search);
-  const preselected = params.get("package");
-
-  let currentUser = null;
-  let allPackagesData = [];
-  let sel = B.emptySelection();
-  let av = B.createAvailability([], "0000-00-00");
-  const firstBookable = () => B.addDays(B.fmt(new Date()), B.LEAD_DAYS);
-
-  // Kalender startet im ersten buchbaren Monat
-  const start = B.parse(firstBookable());
-  let calMonth = start.getMonth();
-  let calYear = start.getFullYear();
-
-  let started = false;
-  onAuthStateChanged(auth, (user)=>{
-    currentUser = (user && user.emailVerified) ? user : null;   // ohne bestätigte E-Mail zählt man als Gast
-    if(currentUser) document.getElementById("f_email").value = currentUser.email;
-    document.getElementById("guestHint").style.display = currentUser ? "none" : "block";
-    if(!started){ started = true; init(); }
-  });
-
-  async function init(){
-    await loadPackages();
-    showSelectedPkgBox();
-    av = B.createAvailability(await loadBlocks(), firstBookable());
-    renderCalendar();
-  }
-
-  // ---------- Pakete ----------
-  async function loadPackages(){
-    const select = document.getElementById("f_package");
-    select.innerHTML = "";
-    allPackagesData = await getAllPackages();
-    for(const p of allPackagesData){
-      const opt = document.createElement("option");
-      opt.value = p.name;
-      opt.textContent = p.name;
-      if(preselected && preselected === p.name) opt.selected = true;
-      select.appendChild(opt);
-    }
-  }
-  function currentPackage(){
-    return allPackagesData.find(p => p.name === document.getElementById("f_package").value);
-  }
-  function showSelectedPkgBox(){
-    const box = document.getElementById("selectedPkgBox");
-    const p = currentPackage();
-    if(!p){ box.innerHTML = ""; return; }
-    const img = (p.images && p.images[0]) || placeholderImg(p.name,"#e8789e");
-    box.innerHTML = `
-      <div class="eyebrow" style="margin-bottom:10px">Dein ausgewähltes Paket</div>
-      <div class="selectedPkg">
-        <img src="${img}">
-        <div>
-          <h3 style="margin-bottom:4px">${p.name}</h3>
-          <div class="price">${p.price||""} <small>für den ersten Tag</small></div>
-          <p style="color:var(--cream-dim);font-size:.9rem;margin:4px 0 0">${p.description||""}</p>
-        </div>
-      </div>`;
-  }
-  document.getElementById("f_package").addEventListener("change", ()=>{
-    showSelectedPkgBox();
-    updatePrice();
-  });
-
-  // ---------- Belegung laden (immer frisch aus der Datenbank) ----------
-  async function loadBlocks(){
-    const blocks = [];
-    // 1) öffentliche Sperrliste (ohne persönliche Daten)
-    try{
-      const snap = await getDocs(collection(db,"blocked"));
-      snap.forEach(d => { const b = d.data(); blocks.push({ S: b.startDate, E: b.endDate }); });
-    }catch(e){ console.warn("Sperrliste nicht lesbar", e); }
-    // 2) ältere Buchungen (nur für den Admin lesbar, sonst ignorieren)
-    try{
-      const snap = await getDocs(collection(db,"bookings"));
-      snap.forEach(d => { const blk = B.blockOf(d.data()); if(blk) blocks.push(blk); });
-    }catch(e){ /* normale Kunden dürfen nicht alle Buchungen lesen – ist okay */ }
-    return blocks;
-  }
-
-  // ---------- Kalender ----------
-  function renderCalendar(){
-    const cal = document.getElementById("calendar");
-    const first = new Date(calYear, calMonth, 1);
-    const startWeekday = (first.getDay()+6)%7;
-    const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
-    const monthNames = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
-    let html = `<div class="cal-head">
-      <button type="button" onclick="calNav(-1)">‹</button>
-      <div class="label">${monthNames[calMonth]} ${calYear}</div>
-      <button type="button" onclick="calNav(1)">›</button>
-    </div>
-    <div class="cal-grid">
-      ${["Mo","Di","Mi","Do","Fr","Sa","So"].map(d=>`<div class="dow">${d}</div>`).join("")}`;
-    for(let i=0;i<startWeekday;i++) html += `<div></div>`;
-    for(let day=1; day<=daysInMonth; day++){
-      const iso = `${calYear}-${B.pad(calMonth+1)}-${B.pad(day)}`;
-      const cls = B.dayClass(sel, iso, av);
-      const disabled = B.dayDisabled(sel, iso, av);
-      html += `<button type="button" data-date="${iso}" ${disabled?"disabled":""} class="${cls}" onclick="pickDate('${iso}')">${day}</button>`;
-    }
-    html += `</div>`;
-    cal.innerHTML = html;
-    updateHint();
-    updatePrice();
-  }
-  window.calNav = function(dir){
-    calMonth += dir;
-    if(calMonth<0){calMonth=11;calYear--;}
-    if(calMonth>11){calMonth=0;calYear++;}
-    renderCalendar();
-  }
-  window.pickDate = function(iso){
-    sel = B.pickDay(sel, iso, av);
-    renderCalendar();
-  }
-  document.getElementById("calReset").addEventListener("click", ()=>{
-    sel = B.emptySelection();
-    renderCalendar();
-  });
-
-  function updateHint(){
-    const el = document.getElementById("calSelected");
-    el.style.color = "var(--cream)";
-    document.getElementById("calReset").style.display = sel.first ? "inline" : "none";
-    if(!sel.first){ el.textContent = "Bitte tippe deinen ersten Veranstaltungstag an."; return; }
-    const { pickup, ret } = B.periodFor(sel.first, sel.last);
-    const range = sel.first === sel.last ? B.nice(sel.first) : `${B.nice(sel.first)} bis ${B.nice(sel.last)}`;
-    let txt = `Veranstaltung: ${range} · Abholung: ${B.nice(pickup)} · Rückgabe: ${B.nice(ret)}`;
-    if(sel.first === sel.last) txt += " — Für mehrere Tage tippe den letzten Tag an oder die folgenden Tage nacheinander.";
-    el.textContent = txt;
-  }
-
-  // ---------- Preis ----------
-  function updatePrice(){
-    const box = document.getElementById("priceBox");
-    const p = currentPackage();
-    if(!p || !sel.first){ box.style.display = "none"; box.innerHTML = ""; return; }
-    box.style.display = "block";
-    box.innerHTML = B.priceSummaryHtml(B.parsePrice(p.price), B.eventDayCount(sel.first, sel.last));
-  }
-
-  // ---------- Absenden ----------
-  document.getElementById("bookingForm").addEventListener("submit", async (e)=>{
-    e.preventDefault();
-    const status = document.getElementById("formStatus");
-    if(!sel.first){
-      const el = document.getElementById("calSelected");
-      el.textContent = "Bitte wähle zuerst deinen Veranstaltungszeitraum aus.";
-      el.style.color = "var(--pink)";
-      return;
-    }
-    status.textContent = "Verfügbarkeit wird geprüft…";
-    status.style.color = "var(--cream-dim)";
-    try{
-      // 1) Verfügbarkeit unmittelbar vor dem Speichern NOCH EINMAL frisch prüfen
-      const freshAv = B.createAvailability(await loadBlocks(), firstBookable());
-      if(!freshAv.validEventRange(sel.first, sel.last)){
-        av = freshAv;
-        sel = B.emptySelection();
-        renderCalendar();
-        status.textContent = "Dieser Zeitraum ist leider nicht mehr frei. Bitte wähle einen anderen.";
-        status.style.color = "var(--pink)";
-        return;
-      }
-      // 2) Preis frisch berechnen: aktueller Paketpreis aus der Datenbank + gewählte Tage
-      const chosen = currentPackage();
-      const pkg = await getPackage(chosen.id);
-      const basePrice = B.parsePrice(pkg.price);
-      const eventDays = B.eventDayCount(sel.first, sel.last);
-      const total = B.rentalPrice(basePrice, eventDays);
-      const { pickup, ret } = B.periodFor(sel.first, sel.last);
-
-      status.textContent = "Wird gesendet…";
-      const bref = doc(collection(db,"bookings"));
-      await setDoc(bref,{
-        uid: currentUser ? currentUser.uid : "",
-        name: document.getElementById("f_name").value,
-        email: document.getElementById("f_email").value,
-        phone: document.getElementById("f_phone").value,
-        location: document.getElementById("f_location").value,
-        package: pkg.name,
-        firstEventDay: sel.first,
-        lastEventDay: sel.last,
-        eventDays,
-        startDate: pickup,            // Abholtag (halber Tag)
-        endDate: ret,                 // Rückgabetag (halber Tag)
-        eventDate: sel.first,         // für ältere Ansichten
-        basePrice,
-        extraDayPrice: B.EXTRA_DAY_PRICE,
-        price: total,                 // Mietpreis ohne Kaution
-        deposit: B.DEPOSIT,           // Kaution, separat
-        message: document.getElementById("f_message").value,
-        bookingStatus: "neu",
-        paymentStatus: "offen",
-        paidAmount: 0,
-        createdAt: serverTimestamp()
-      });
-      // öffentliche Sperrliste (ohne persönliche Daten) mit gleicher ID
-      try{
-        await setDoc(doc(db,"blocked",bref.id), { startDate: pickup, endDate: ret, uid: currentUser ? currentUser.uid : "" });
-      }catch(err){ console.warn("Sperrliste nicht geschrieben", err); }
-
-      status.style.color = "var(--mint)";
-      document.querySelector("#bookingForm button[type=submit]").disabled = true;   // nicht doppelt senden
-      if(currentUser){
-        status.textContent = "Danke! Deine Buchung ist da — schau bald bei 'Meine Buchungen' vorbei.";
-        setTimeout(()=>location.href="meine-buchungen.html", 1400);
-      } else {
-        status.textContent = "Danke! Deine Buchung ist angekommen. Wir melden uns per E-Mail bei dir.";
-      }
-    }catch(err){
-      status.textContent = "Ups, das hat nicht geklappt. Versuch's nochmal.";
-      status.style.color = "var(--pink)";
-      console.error(err);
-    }
-  });
+import * as B from "./booking-logic.js";
+const API="./backend/php/api";
+const params=new URLSearchParams(location.search);
+let packages=[], selection=B.emptySelection();
+let availability=B.createAvailability([],B.addDays(B.fmt(new Date()),B.LEAD_DAYS));
+const firstBookable=()=>B.addDays(B.fmt(new Date()),B.LEAD_DAYS);
+const initial=B.parse(firstBookable()); let month=initial.getMonth(), year=initial.getFullYear();
+const status=document.getElementById("formStatus");
+const submit=document.querySelector('#bookingForm button[type="submit"]');
+const say=(m,c="var(--cream-dim)")=>{status.textContent=m;status.style.color=c;};
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+async function api(file,options={}) {
+  const response=await fetch(API+"/"+file,{...options,headers:{"Accept":"application/json",...(options.body?{"Content-Type":"application/json"}:{}),...options.headers}});
+  let data; try{data=await response.json();}catch{throw Error("Ungültige Serverantwort.");}
+  if(!response.ok) throw Error(data.error||"Serverfehler.");
+  return data;
+}
+// Lokale Navigation: diese Buchungsseite importiert absichtlich keine Firebase-Dateien mehr.
+document.getElementById("site-nav").innerHTML='<div class="stripe"></div><div class="inner"><a href="index.html" class="logo"><span class="logo-text">Candy Bar <span>Vogtland</span></span></a><div class="links"><a href="index.html">Startseite</a><a href="pakete.html">Pakete</a><a href="galerie.html">Galerie</a><a href="anfrage.html" class="active">Buchen</a><a href="kontakt.html">Kontakt</a></div></div>';
+document.getElementById("site-footer").innerHTML='<div class="inner"><div class="links"><a href="kontakt.html">Kontakt</a><a href="impressum.html">Impressum</a><a href="agb.html">AGB</a><a href="datenschutz.html">Datenschutz</a><a href="mailto:candybar.vogtland@gmail.com">candybar.vogtland@gmail.com</a></div></div><div class="bottom">© '+new Date().getFullYear()+' Candy Bar Vogtland</div>';
+async function loadPackages(){
+ const data=await api("packages.php"); packages=Array.isArray(data.packages)?data.packages:[];
+ if(!packages.length) throw Error("Der PHP-Server liefert noch keine Pakete.");
+ const select=document.getElementById("f_package"); select.innerHTML="";
+ for(const p of packages){const o=document.createElement("option");o.value=p.id;o.textContent=p.name;if(params.get("package")===p.id||params.get("package")===p.name)o.selected=true;select.appendChild(o);}
+}
+const currentPackage=()=>packages.find(p=>p.id===document.getElementById("f_package").value);
+function showPackage(){
+ const p=currentPackage(), box=document.getElementById("selectedPkgBox"); if(!p){box.innerHTML="";return;}
+ const descriptions={basic:"Die Candybar selbst – ohne zusätzliches Zubehör und ohne Süßigkeitenfüllung.",comfort:"Candybar mit 15 Gläsern, zwei Holzkisten, Servierzangen und passendem Zubehör. Ohne Süßigkeitenfüllung.",rundumsorglos:"Alles aus dem Comfort-Paket inklusive vollständiger Süßigkeitenfüllung."};
+ box.innerHTML='<div class="eyebrow" style="margin-bottom:10px">Dein ausgewähltes Paket</div><div class="selectedPkg"><div><h3 style="margin-bottom:4px">'+esc(p.name)+'</h3><div class="price">'+(p.priceCents/100).toLocaleString("de-DE",{style:"currency",currency:"EUR"})+' <small>für den ersten Tag</small></div><p style="color:var(--cream-dim);font-size:.9rem;margin:4px 0 0">'+esc(descriptions[p.id]||"")+'</p></div></div>';
+}
+async function loadBlocks(){const d=await api("blocked.php",{cache:"no-store"});return (d.blocked||[]).map(x=>({S:x.startDate,E:x.endDate}));}
+function renderCalendar(){
+ const cal=document.getElementById("calendar"), first=new Date(year,month,1), offset=(first.getDay()+6)%7, count=new Date(year,month+1,0).getDate();
+ const names=["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+ let out='<div class="cal-head"><button type="button" id="prevMonth">‹</button><div class="label">'+names[month]+' '+year+'</div><button type="button" id="nextMonth">›</button></div><div class="cal-grid">'+["Mo","Di","Mi","Do","Fr","Sa","So"].map(x=>'<div class="dow">'+x+'</div>').join("");
+ for(let i=0;i<offset;i++)out+="<div></div>";
+ for(let d=1;d<=count;d++){const iso=year+"-"+B.pad(month+1)+"-"+B.pad(d),cls=B.dayClass(selection,iso,availability),disabled=B.dayDisabled(selection,iso,availability);out+='<button type="button" data-date="'+iso+'" '+(disabled?"disabled":"")+' class="'+cls+'">'+d+'</button>';}
+ cal.innerHTML=out+"</div>";
+ document.getElementById("prevMonth").addEventListener("click",()=>moveMonth(-1));document.getElementById("nextMonth").addEventListener("click",()=>moveMonth(1));
+ cal.querySelectorAll("[data-date]").forEach(btn=>btn.addEventListener("click",()=>{selection=B.pickDay(selection,btn.dataset.date,availability);renderCalendar();}));
+ updateHint();updatePrice();
+}
+function moveMonth(n){month+=n;if(month<0){month=11;year--;}if(month>11){month=0;year++;}renderCalendar();}
+function updateHint(){
+ const el=document.getElementById("calSelected");document.getElementById("calReset").style.display=selection.first?"inline":"none";el.style.color="var(--cream)";
+ if(!selection.first){el.textContent="Bitte tippe deinen ersten Veranstaltungstag an.";return;}
+ const dates=B.periodFor(selection.first,selection.last),range=selection.first===selection.last?B.nice(selection.first):B.nice(selection.first)+" bis "+B.nice(selection.last);
+ el.textContent="Veranstaltung: "+range+" · Abholung: "+B.nice(dates.pickup)+" · Rückgabe: "+B.nice(dates.ret);
+}
+function updatePrice(){
+ const box=document.getElementById("priceBox"),p=currentPackage();if(!p||!selection.first){box.style.display="none";box.innerHTML="";return;}
+ box.style.display="block";box.innerHTML=B.priceSummaryHtml(p.priceCents/100,B.eventDayCount(selection.first,selection.last));
+}
+document.getElementById("f_package").addEventListener("change",()=>{showPackage();updatePrice();});
+document.getElementById("calReset").addEventListener("click",()=>{selection=B.emptySelection();renderCalendar();});
+document.getElementById("bookingForm").addEventListener("submit",async e=>{
+ e.preventDefault();if(!selection.first){say("Bitte wähle zuerst deinen Veranstaltungszeitraum aus.","var(--pink)");return;}
+ const p=currentPackage();if(!p){say("Bitte wähle ein Paket.","var(--pink)");return;}
+ submit.disabled=true;say("Verfügbarkeit wird beim PHP-Server geprüft …");
+ try{
+  const fresh=B.createAvailability(await loadBlocks(),firstBookable());
+  if(!fresh.validEventRange(selection.first,selection.last)){availability=fresh;selection=B.emptySelection();renderCalendar();throw Error("Der Zeitraum ist leider nicht mehr frei. Bitte wähle einen anderen.");}
+  say("Buchungsanfrage wird über PHP verarbeitet …");
+  const payload={name:document.getElementById("f_name").value.trim(),email:document.getElementById("f_email").value.trim(),phone:document.getElementById("f_phone").value.trim(),location:document.getElementById("f_location").value.trim(),packageId:p.id,eventStart:selection.first,eventEnd:selection.last,message:document.getElementById("f_message").value.trim(),website:""};
+  const result=await api("bookings.php",{method:"POST",body:JSON.stringify(payload)});
+  say("Danke! Deine Anfrage ist eingegangen. Gesamtmietpreis: "+(result.priceCents/100).toLocaleString("de-DE",{style:"currency",currency:"EUR"})+". Kaution: "+(result.depositCents/100).toLocaleString("de-DE",{style:"currency",currency:"EUR"})+". Wir melden uns per E-Mail.","var(--mint)");
+  document.getElementById("bookingForm").reset();selection=B.emptySelection();renderCalendar();
+ }catch(err){console.error(err);say(err.message||"Ups, das hat nicht geklappt. Bitte versuche es erneut.","var(--pink)");}
+ finally{submit.disabled=false;}
+});
+(async()=>{try{await loadPackages();showPackage();availability=B.createAvailability(await loadBlocks(),firstBookable());renderCalendar();}catch(err){console.error(err);say(err.message+" Auf GitHub Pages kann PHP nicht ausgeführt werden; dafür braucht die Seite PHP-Webhosting.","var(--pink)");submit.disabled=true;}})();
 </script>
 </body>
 </html>

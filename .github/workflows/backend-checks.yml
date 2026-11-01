@@ -1,0 +1,31 @@
+name: Backend checks
+
+on:
+  push:
+    branches: [firebase-security-fix]
+  pull_request:
+    branches: [main]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+      - name: JavaScript syntax
+        run: node --check backend/cloudflare/worker.js
+      - name: PHP syntax
+        run: |
+          php -l backend/php/lib/bootstrap.php
+          php -l backend/php/api/blocked.php
+          php -l backend/php/api/packages.php
+          php -l backend/php/api/bookings.php
+          php -l backend/php/tests/run.php
+          php backend/php/tests/run.php
+      - name: D1 schema and booking-lock tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
