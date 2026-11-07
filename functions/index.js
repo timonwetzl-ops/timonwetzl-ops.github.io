@@ -101,8 +101,9 @@ exports.createBooking = onCall({ region: "europe-west3" }, async request => {
       tx.set(lockRefs[i], { [plan[i].slot]: bookingRef.id }, { merge: true });
     }
     tx.create(bookingRef, booking);
+    // Öffentliche Kalenderdaten enthalten keine Kunden-UID.
     tx.create(blockedRef, {
-      uid: request.auth.uid, startDate: booking.startDate, endDate: booking.endDate,
+      startDate: booking.startDate, endDate: booking.endDate,
       eventStart: start, eventEnd: end
     });
     // Wird nur versendet, wenn die Firebase-Extension „Trigger Email“ eingerichtet ist.
