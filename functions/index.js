@@ -164,7 +164,7 @@ exports.createContact = onCall({ region: "europe-west3" }, async request => {
   const name = clean(input.name, 120);
   const email = clean(input.email, 254);
   const address = clean(input.address, 300);
-  const subject = clean(input.subject, 160).replace(/[\\r\\n]/g, " ");
+  const subject = clean(input.subject, 160).replace(/[\r\n]/g, " ");
   const message = clean(input.message, 5000);
   if (!name || !email || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || !message) {
     throw new HttpsError("invalid-argument", "Bitte prüfe Name, E-Mail-Adresse und Nachricht.");
