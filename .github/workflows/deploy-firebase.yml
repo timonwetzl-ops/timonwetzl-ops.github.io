@@ -8,6 +8,7 @@ on:
     paths:
       - "functions/**"
       - "firestore.rules"
+      - "storage.rules"
       - "firebase.json"
       - ".github/workflows/deploy-firebase.yml"
   # Optionaler manueller Start über GitHub Actions.
@@ -45,5 +46,5 @@ jobs:
       - name: Functions-Abhängigkeiten installieren
         run: npm install --prefix functions
 
-      - name: Firebase Functions und Firestore-Regeln veröffentlichen
-        run: firebase deploy --only functions,firestore:rules --project candybar-a33ca
+      - name: Firebase Functions, Firestore- und Storage-Regeln veröffentlichen
+        run: firebase deploy --only functions,firestore:rules,storage --project candybar-a33ca
