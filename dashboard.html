@@ -49,15 +49,7 @@
 </head>
 <body>
 
-<div id="gate">
-  <h1>Dashboard</h1>
-  <p style="color:var(--cream-dim)">Gib deinen Zugangscode ein</p>
-  <input type="password" id="codeInput" placeholder="••••••" maxlength="20">
-  <br><button onclick="checkCode()">Weiter</button>
-  <div id="gateError"></div>
-</div>
-
-<div id="adminLoginGate" style="display:none">
+<div id="adminLoginGate" style="display:flex">
   <h1>Admin-Anmeldung</h1>
   <p style="color:var(--cream-dim)">Melde dich mit deinem Admin-Konto an</p>
   <input type="email" id="adminEmail" placeholder="E-Mail">
@@ -148,10 +140,17 @@
 </div>
 
 <script type="module">
-  import { db, auth, storage, uploadFile, DASHBOARD_CODE, ADMIN_EMAIL } from "./firebase-init.js";
+  import { db, auth, storage, uploadFile, ADMIN_EMAIL } from "./firebase-init.js";
   import { getPackage, PACKAGE_IDS, DEFAULT_PACKAGES } from "./packages-default.js";
   import { nice, EXTRA_DAY_PRICE } from "./booking-logic.js";
 
+  function escapeHtml(value){
+    return String(value ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#39;");
+  }
+  function safeImageUrl(value){
+    try { const url = new URL(String(value || ""), location.origin); return url.protocol === "https:" ? escapeHtml(url.href) : ""; }
+    catch { return ""; }
+  }
   function dateText(b){
     if(b.firstEventDay && b.lastEventDay && b.lastEventDay !== b.firstEventDay) return `${nice(b.firstEventDay)} – ${nice(b.lastEventDay)}<br><span style="font-size:.75rem;color:var(--cream-dim)">${b.eventDays} Tage · Abholung ${nice(b.startDate)} · Rückgabe ${nice(b.endDate)}</span>`;
     if(b.firstEventDay) return `${nice(b.firstEventDay)}<br><span style="font-size:.75rem;color:var(--cream-dim)">Abholung ${nice(b.startDate)} · Rückgabe ${nice(b.endDate)}</span>`;
@@ -169,15 +168,8 @@
 
   let packagePrices = {};
 
-  window.checkCode = function(){
-    const val = document.getElementById("codeInput").value;
-    if(val === DASHBOARD_CODE){
-      document.getElementById("gate").style.display = "none";
-      checkAdminAuth();
-    } else {
-      document.getElementById("gateError").textContent = "Falscher Code, versuch's nochmal.";
-    }
-  }
+  // Der frühere Zugangscode lag im öffentlichen JavaScript und war kein Geheimnis.
+  // Der Zugriff wird ausschließlich durch Firebase Authentication und Firestore-Regeln geschützt.
 
   function checkAdminAuth(){
     onAuthStateChanged(auth, (user)=>{
@@ -237,7 +229,7 @@
   async function loadHome(){
     const snap = await getDoc(doc(db,"config","home"));
     const data = snap.exists() ? snap.data() : {};
-    if(data.heroImage) document.getElementById("heroPreview").src = data.heroImage;
+    if(data.heroImage) document.getElementById("heroPreview").src = safeImageUrl(data.heroImage);
     document.getElementById("heroTextInput").value = data.heroText || "";
   }
 
@@ -245,7 +237,7 @@
     const file = event.target.files[0];
     if(!file) return;
     const url = await uploadFile(file, "home");
-    document.getElementById("heroPreview").src = url;
+    document.getElementById("heroPreview").src = safeImageUrl(url);
     const ref_ = doc(db,"config","home");
     const snap = await getDoc(ref_);
     const data = snap.exists() ? snap.data() : {};
@@ -286,10 +278,10 @@
       body.innerHTML += `
         <tr>
           <td>${dateText(b)}</td>
-          <td>${b.name || ""}</td>
-          <td>${b.package || ""}</td>
-          <td>${b.email || ""}<br>${b.phone || ""}</td>
-          <td>${b.location ? b.location+"<br>" : ""}${b.message || ""}</td>
+          <td>${escapeHtml(b.name)}</td>
+          <td>${escapeHtml(b.package)}</td>
+          <td>${escapeHtml(b.email)}<br>${escapeHtml(b.phone)}</td>
+          <td>${b.location ? escapeHtml(b.location)+"<br>" : ""}${escapeHtml(b.message)}</td>
           <td>
             <select class="statusSelect" onchange="updateBookingStatus('${b.id}', this.value)">
               <option value="neu" ${bookingStatus==="neu"?"selected":""}>Neu</option>
@@ -356,12 +348,12 @@
       const date = c.createdAt?.seconds ? new Date(c.createdAt.seconds*1000).toLocaleDateString("de-DE") : "";
       body.innerHTML += `
         <tr>
-          <td>${date}</td>
-          <td>${c.name||""}</td>
-          <td>${c.email||""}</td>
-          <td>${c.address||""}</td>
-          <td>${c.subject||""}</td>
-          <td>${c.message||""}</td>
+          <td>${escapeHtml(date)}</td>
+          <td>${escapeHtml(c.name)}</td>
+          <td>${escapeHtml(c.email)}</td>
+          <td>${escapeHtml(c.address)}</td>
+          <td>${escapeHtml(c.subject)}</td>
+          <td>${escapeHtml(c.message)}</td>
         </tr>`;
     });
   }
@@ -378,19 +370,19 @@
       const images = p.images || [];
       const includes = (p.includes || []).join("\n");
       list.innerHTML += `
-        <div class="card" data-id="${id}">
+        <div class="card" data-id="${escapeHtml(id)}">
           <div class="row">
-            <input type="text" value="${p.name||""}" placeholder="Name" class="pName">
-            <input type="text" value="${p.price||""}" placeholder="Preis" class="pPrice">
+            <input type="text" value="${escapeHtml(p.name)}" placeholder="Name" class="pName">
+            <input type="text" value="${escapeHtml(p.price)}" placeholder="Preis" class="pPrice">
           </div>
           <div class="row">
-            <input type="text" value="${p.description||""}" placeholder="Beschreibung" class="pDesc" style="flex:3">
+            <input type="text" value="${escapeHtml(p.description)}" placeholder="Beschreibung" class="pDesc" style="flex:3">
           </div>
           <div class="row includesEdit">
-            <textarea class="pIncludes" placeholder="Enthaltene Leistungen (eine pro Zeile)">${includes}</textarea>
+            <textarea class="pIncludes" placeholder="Enthaltene Leistungen (eine pro Zeile)">${escapeHtml(includes)}</textarea>
           </div>
           <div class="row">
-            <input type="text" value="${p.stripeLink||""}" placeholder="Stripe Payment Link (URL)" class="pStripe" style="flex:3">
+            <input type="text" value="${escapeHtml(p.stripeLink)}" placeholder="Stripe Payment Link (URL)" class="pStripe" style="flex:3">
           </div>
           <div class="row">
             <button onclick="savePackage('${id}', this)">Speichern</button>
@@ -401,7 +393,7 @@
           </div>
           <div class="imgList" id="pkgImgs-${id}">
             ${images.map((url,i)=>`
-              <div><img src="${url}"><button onclick="removePackageImage('${id}', ${i})">×</button></div>`).join("")}
+              <div><img src="${safeImageUrl(url)}" alt=""><button onclick="removePackageImage('${escapeHtml(id)}', ${i})">×</button></div>`).join("")}
           </div>
         </div>`;
     }
@@ -462,7 +454,7 @@
     const list = document.getElementById("imgList");
     list.innerHTML = "";
     images.forEach((url, i)=>{
-      list.innerHTML += `<div><img src="${url}"><button onclick="removeImage(${i})">×</button></div>`;
+      list.innerHTML += `<div><img src="${safeImageUrl(url)}" alt=""><button onclick="removeImage(${i})">×</button></div>`;
     });
   }
 
