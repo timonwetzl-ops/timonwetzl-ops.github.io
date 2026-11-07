@@ -153,7 +153,7 @@
   }
   function dateText(b){
     if(b.firstEventDay && b.lastEventDay && b.lastEventDay !== b.firstEventDay) return `${escapeHtml(nice(b.firstEventDay))} – ${escapeHtml(nice(b.lastEventDay))}<br><span style="font-size:.75rem;color:var(--cream-dim)">${escapeHtml(b.eventDays)} Tage · Abholung ${escapeHtml(nice(b.startDate))} · Rückgabe ${escapeHtml(nice(b.endDate))}</span>`;
-    if(b.firstEventDay) return `${nice(b.firstEventDay)}<br><span style="font-size:.75rem;color:var(--cream-dim)">Abholung ${nice(b.startDate)} · Rückgabe ${nice(b.endDate)}</span>`;
+    if(b.firstEventDay) return `${escapeHtml(nice(b.firstEventDay))}<br><span style="font-size:.75rem;color:var(--cream-dim)">Abholung ${escapeHtml(nice(b.startDate))} · Rückgabe ${escapeHtml(nice(b.endDate))}</span>`;
     return escapeHtml(b.eventDate || "");
   }
   import {
