@@ -3,7 +3,9 @@
 ## Status
 
 Der Branch `firebase-security-fix` enthält den Übergangsentwurf mit:
-- Callable Function `createBooking` für Buchungsanfragen
+- Callable Functions `createBooking` und `createContact` für Buchungs- und Kontaktanfragen
+- serverseitige IP- und Nutzer-Begrenzung gegen massenhafte Anfragen
+- verstecktes Honeypot-Feld im Kontaktformular
 - transaktionalen Tages-Sperren
 - Firestore-Regeln für Buchungen, Kalenderdaten und Kontaktanfragen
 - Storage-Regeln für Bilddateien
@@ -43,7 +45,10 @@ Wichtig: Der Workflow darf erst ausgeführt werden, wenn die Änderungen geprüf
 - E-Mail-Auslösung über „Trigger Email“
 - Bild-Upload, Ersetzen und Löschen über Firebase Storage
 - Bestehende Buchungen: vor dem Umschalten müssen alte Buchungen und Sperren übernommen bzw. geprüft werden
-- Kontaktformular: Spam-Schutz und Begrenzung der Anfragen ergänzen
+- Kontaktformular: Rate-Limit (3 Anfragen je IP und Stunde), Honeypot und serverseitige Validierung prüfen
+- Buchungsformular: Rate-Limit (8 Anfragen je IP und 4 je Nutzer pro 24 Stunden) prüfen
+- App Check in Firebase registrieren und nach Einrichtung in beiden Callable Functions erzwingen
+- Rate-Limit-Dokumente regelmäßig bereinigen (Firestore TTL oder geplanter Bereinigungsjob)
 
 ## Sicherheits- und Veröffentlichungsgrenzen
 
