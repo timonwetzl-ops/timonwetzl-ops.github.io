@@ -68,78 +68,124 @@
 
 <script type="module">
 import * as B from "./booking-logic.js";
-const API="./backend/php/api";
+import { db, auth } from "./firebase-init.js";
+import { getAllPackages } from "./packages-default.js";
+import { createStore } from "./booking-store.js";
+import {
+  collection, getDocs, doc, serverTimestamp, runTransaction
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+const bookingStore=createStore({collection,getDocs,doc,runTransaction,serverTimestamp},db);
 const params=new URLSearchParams(location.search);
-let packages=[], selection=B.emptySelection();
+let packages=[],selection=B.emptySelection();
 let availability=B.createAvailability([],B.addDays(B.fmt(new Date()),B.LEAD_DAYS));
 const firstBookable=()=>B.addDays(B.fmt(new Date()),B.LEAD_DAYS);
-const initial=B.parse(firstBookable()); let month=initial.getMonth(), year=initial.getFullYear();
+const initial=B.parse(firstBookable());let month=initial.getMonth(),year=initial.getFullYear();
 const status=document.getElementById("formStatus");
 const submit=document.querySelector('#bookingForm button[type="submit"]');
-const say=(m,c="var(--cream-dim)")=>{status.textContent=m;status.style.color=c;};
-const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-async function api(file,options={}) {
-  const response=await fetch(API+"/"+file,{...options,headers:{"Accept":"application/json",...(options.body?{"Content-Type":"application/json"}:{}),...options.headers}});
-  let data; try{data=await response.json();}catch{throw Error("Ungültige Serverantwort.");}
-  if(!response.ok) throw Error(data.error||"Serverfehler.");
-  return data;
-}
-// Lokale Navigation: diese Buchungsseite importiert absichtlich keine Firebase-Dateien mehr.
+const say=(message,color="var(--cream-dim)")=>{status.textContent=message;status.style.color=color;};
+const esc=value=>String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 document.getElementById("site-nav").innerHTML='<div class="stripe"></div><div class="inner"><a href="index.html" class="logo"><span class="logo-text">Candy Bar <span>Vogtland</span></span></a><div class="links"><a href="index.html">Startseite</a><a href="pakete.html">Pakete</a><a href="galerie.html">Galerie</a><a href="anfrage.html" class="active">Buchen</a><a href="kontakt.html">Kontakt</a></div></div>';
 document.getElementById("site-footer").innerHTML='<div class="inner"><div class="links"><a href="kontakt.html">Kontakt</a><a href="impressum.html">Impressum</a><a href="agb.html">AGB</a><a href="datenschutz.html">Datenschutz</a><a href="mailto:candybar.vogtland@gmail.com">candybar.vogtland@gmail.com</a></div></div><div class="bottom">© '+new Date().getFullYear()+' Candy Bar Vogtland</div>';
+
 async function loadPackages(){
- const data=await api("packages.php"); packages=Array.isArray(data.packages)?data.packages:[];
- if(!packages.length) throw Error("Der PHP-Server liefert noch keine Pakete.");
- const select=document.getElementById("f_package"); select.innerHTML="";
- for(const p of packages){const o=document.createElement("option");o.value=p.id;o.textContent=p.name;if(params.get("package")===p.id||params.get("package")===p.name)o.selected=true;select.appendChild(o);}
+  const loaded=await getAllPackages();
+  packages=loaded.map(p=>({...p,priceCents:Math.round(B.parsePrice(p.price)*100)})).filter(p=>p.priceCents>0);
+  if(!packages.length)throw Error("Die Pakete konnten nicht aus Firebase geladen werden.");
+  const select=document.getElementById("f_package");select.innerHTML="";
+  for(const p of packages){const option=document.createElement("option");option.value=p.id;option.textContent=p.name;if(params.get("package")===p.id||params.get("package")===p.name)option.selected=true;select.appendChild(option);}
 }
 const currentPackage=()=>packages.find(p=>p.id===document.getElementById("f_package").value);
 function showPackage(){
- const p=currentPackage(), box=document.getElementById("selectedPkgBox"); if(!p){box.innerHTML="";return;}
- const descriptions={basic:"Die Candybar selbst – ohne zusätzliches Zubehör und ohne Süßigkeitenfüllung.",comfort:"Candybar mit 15 Gläsern, zwei Holzkisten, Servierzangen und passendem Zubehör. Ohne Süßigkeitenfüllung.",rundumsorglos:"Alles aus dem Comfort-Paket inklusive vollständiger Süßigkeitenfüllung."};
- box.innerHTML='<div class="eyebrow" style="margin-bottom:10px">Dein ausgewähltes Paket</div><div class="selectedPkg"><div><h3 style="margin-bottom:4px">'+esc(p.name)+'</h3><div class="price">'+(p.priceCents/100).toLocaleString("de-DE",{style:"currency",currency:"EUR"})+' <small>für den ersten Tag</small></div><p style="color:var(--cream-dim);font-size:.9rem;margin:4px 0 0">'+esc(descriptions[p.id]||"")+'</p></div></div>';
+  const p=currentPackage(),box=document.getElementById("selectedPkgBox");if(!p){box.innerHTML="";return;}
+  box.innerHTML='<div class="eyebrow" style="margin-bottom:10px">Dein ausgewähltes Paket</div><div class="selectedPkg"><div><h3 style="margin-bottom:4px">'+esc(p.name)+'</h3><div class="price">'+(p.priceCents/100).toLocaleString("de-DE",{style:"currency",currency:"EUR"})+' <small>für den ersten Tag</small></div><p style="color:var(--cream-dim);font-size:.9rem;margin:4px 0 0">'+esc(p.description||"")+'</p></div></div>';
 }
-async function loadBlocks(){const d=await api("blocked.php",{cache:"no-store"});return (d.blocked||[]).map(x=>({S:x.startDate,E:x.endDate}));}
+async function loadBlocks(){
+  const snap=await getDocs(collection(db,"blocked")),blocks=[];
+  snap.forEach(item=>{const data=item.data();if(data.startDate)blocks.push({S:data.startDate,E:data.endDate||data.startDate});});
+  return blocks;
+}
 function renderCalendar(){
- const cal=document.getElementById("calendar"), first=new Date(year,month,1), offset=(first.getDay()+6)%7, count=new Date(year,month+1,0).getDate();
- const names=["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
- let out='<div class="cal-head"><button type="button" id="prevMonth">‹</button><div class="label">'+names[month]+' '+year+'</div><button type="button" id="nextMonth">›</button></div><div class="cal-grid">'+["Mo","Di","Mi","Do","Fr","Sa","So"].map(x=>'<div class="dow">'+x+'</div>').join("");
- for(let i=0;i<offset;i++)out+="<div></div>";
- for(let d=1;d<=count;d++){const iso=year+"-"+B.pad(month+1)+"-"+B.pad(d),cls=B.dayClass(selection,iso,availability),disabled=B.dayDisabled(selection,iso,availability);out+='<button type="button" data-date="'+iso+'" '+(disabled?"disabled":"")+' class="'+cls+'">'+d+'</button>';}
- cal.innerHTML=out+"</div>";
- document.getElementById("prevMonth").addEventListener("click",()=>moveMonth(-1));document.getElementById("nextMonth").addEventListener("click",()=>moveMonth(1));
- cal.querySelectorAll("[data-date]").forEach(btn=>btn.addEventListener("click",()=>{selection=B.pickDay(selection,btn.dataset.date,availability);renderCalendar();}));
- updateHint();updatePrice();
+  const cal=document.getElementById("calendar"),first=new Date(year,month,1),offset=(first.getDay()+6)%7,count=new Date(year,month+1,0).getDate();
+  const names=["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+  let out='<div class="cal-head"><button type="button" id="prevMonth">‹</button><div class="label">'+names[month]+' '+year+'</div><button type="button" id="nextMonth">›</button></div><div class="cal-grid">'+["Mo","Di","Mi","Do","Fr","Sa","So"].map(x=>'<div class="dow">'+x+'</div>').join("");
+  for(let i=0;i<offset;i++)out+="<div></div>";
+  for(let d=1;d<=count;d++){const iso=year+"-"+B.pad(month+1)+"-"+B.pad(d),cls=B.dayClass(selection,iso,availability),disabled=B.dayDisabled(selection,iso,availability);out+='<button type="button" data-date="'+iso+'" '+(disabled?"disabled":"")+' class="'+cls+'">'+d+'</button>';}
+  cal.innerHTML=out+"</div>";
+  document.getElementById("prevMonth").addEventListener("click",()=>moveMonth(-1));
+  document.getElementById("nextMonth").addEventListener("click",()=>moveMonth(1));
+  cal.querySelectorAll("[data-date]").forEach(button=>button.addEventListener("click",()=>{selection=B.pickDay(selection,button.dataset.date,availability);renderCalendar();}));
+  updateHint();updatePrice();
 }
 function moveMonth(n){month+=n;if(month<0){month=11;year--;}if(month>11){month=0;year++;}renderCalendar();}
 function updateHint(){
- const el=document.getElementById("calSelected");document.getElementById("calReset").style.display=selection.first?"inline":"none";el.style.color="var(--cream)";
- if(!selection.first){el.textContent="Bitte tippe deinen ersten Veranstaltungstag an.";return;}
- const dates=B.periodFor(selection.first,selection.last),range=selection.first===selection.last?B.nice(selection.first):B.nice(selection.first)+" bis "+B.nice(selection.last);
- el.textContent="Veranstaltung: "+range+" · Abholung: "+B.nice(dates.pickup)+" · Rückgabe: "+B.nice(dates.ret);
+  const el=document.getElementById("calSelected");document.getElementById("calReset").style.display=selection.first?"inline":"none";el.style.color="var(--cream)";
+  if(!selection.first){el.textContent="Bitte tippe deinen ersten Veranstaltungstag an.";return;}
+  const dates=B.periodFor(selection.first,selection.last),range=selection.first===selection.last?B.nice(selection.first):B.nice(selection.first)+" bis "+B.nice(selection.last);
+  el.textContent="Veranstaltung: "+range+" · Abholung: "+B.nice(dates.pickup)+" · Rückgabe: "+B.nice(dates.ret);
 }
 function updatePrice(){
- const box=document.getElementById("priceBox"),p=currentPackage();if(!p||!selection.first){box.style.display="none";box.innerHTML="";return;}
- box.style.display="block";box.innerHTML=B.priceSummaryHtml(p.priceCents/100,B.eventDayCount(selection.first,selection.last));
+  const box=document.getElementById("priceBox"),p=currentPackage();if(!p||!selection.first){box.style.display="none";box.innerHTML="";return;}
+  box.style.display="block";box.innerHTML=B.priceSummaryHtml(p.priceCents/100,B.eventDayCount(selection.first,selection.last));
 }
 document.getElementById("f_package").addEventListener("change",()=>{showPackage();updatePrice();});
 document.getElementById("calReset").addEventListener("click",()=>{selection=B.emptySelection();renderCalendar();});
-document.getElementById("bookingForm").addEventListener("submit",async e=>{
- e.preventDefault();if(!selection.first){say("Bitte wähle zuerst deinen Veranstaltungszeitraum aus.","var(--pink)");return;}
- const p=currentPackage();if(!p){say("Bitte wähle ein Paket.","var(--pink)");return;}
- submit.disabled=true;say("Verfügbarkeit wird beim PHP-Server geprüft …");
- try{
-  const fresh=B.createAvailability(await loadBlocks(),firstBookable());
-  if(!fresh.validEventRange(selection.first,selection.last)){availability=fresh;selection=B.emptySelection();renderCalendar();throw Error("Der Zeitraum ist leider nicht mehr frei. Bitte wähle einen anderen.");}
-  say("Buchungsanfrage wird über PHP verarbeitet …");
-  const payload={name:document.getElementById("f_name").value.trim(),email:document.getElementById("f_email").value.trim(),phone:document.getElementById("f_phone").value.trim(),location:document.getElementById("f_location").value.trim(),packageId:p.id,eventStart:selection.first,eventEnd:selection.last,message:document.getElementById("f_message").value.trim(),website:""};
-  const result=await api("bookings.php",{method:"POST",body:JSON.stringify(payload)});
-  say("Danke! Deine Anfrage ist eingegangen. Gesamtmietpreis: "+(result.priceCents/100).toLocaleString("de-DE",{style:"currency",currency:"EUR"})+". Kaution: "+(result.depositCents/100).toLocaleString("de-DE",{style:"currency",currency:"EUR"})+". Wir melden uns per E-Mail.","var(--mint)");
-  document.getElementById("bookingForm").reset();selection=B.emptySelection();renderCalendar();
- }catch(err){console.error(err);say(err.message||"Ups, das hat nicht geklappt. Bitte versuche es erneut.","var(--pink)");}
- finally{submit.disabled=false;}
+document.getElementById("bookingForm").addEventListener("submit",async event=>{
+  event.preventDefault();
+  if(!selection.first){say("Bitte wähle zuerst deinen Veranstaltungszeitraum aus.","var(--pink)");return;}
+  const p=currentPackage();if(!p){say("Bitte wähle ein Paket.","var(--pink)");return;}
+  submit.disabled=true;say("Verfügbarkeit wird geprüft …");
+  try{
+    const fresh=B.createAvailability(await loadBlocks(),firstBookable());
+    if(!fresh.validEventRange(selection.first,selection.last)){availability=fresh;selection=B.emptySelection();renderCalendar();throw Error("Der Zeitraum ist leider nicht mehr frei. Bitte wähle einen anderen.");}
+    say("Buchungsanfrage wird sicher gespeichert …");
+    const user=auth.currentUser|| (await signInAnonymously(auth)).user;
+    const eventDays=B.eventDayCount(selection.first,selection.last);
+    const dates=B.periodFor(selection.first,selection.last);
+    const price=p.priceCents/100+(eventDays-1)*B.EXTRA_DAY_PRICE;
+    const payload={
+      uid:user.uid,
+      name:document.getElementById("f_name").value.trim(),
+      email:document.getElementById("f_email").value.trim(),
+      phone:document.getElementById("f_phone").value.trim(),
+      location:document.getElementById("f_location").value.trim(),
+      package:p.name,
+      firstEventDay:selection.first,
+      lastEventDay:selection.last,
+      eventStart:selection.first,
+      eventEnd:selection.last,
+      eventDays,
+      startDate:dates.pickup,
+      endDate:dates.ret,
+      eventDate:selection.first,
+      basePrice:p.priceCents/100,
+      extraDayPrice:B.EXTRA_DAY_PRICE,
+      price,
+      deposit:B.DEPOSIT,
+      message:document.getElementById("f_message").value.trim(),
+      bookingStatus:"neu",
+      paymentStatus:"offen",
+      paidAmount:0
+    };
+    const bookingRef=doc(collection(db,"bookings"));
+    await bookingStore.reserve(bookingRef.id,payload);
+    say("Danke! Deine Anfrage ist eingegangen. Gesamtmietpreis: "+price.toLocaleString("de-DE",{style:"currency",currency:"EUR"})+". Kaution: "+B.DEPOSIT+" €. Wir melden uns per E-Mail.","var(--mint)");
+    document.getElementById("bookingForm").reset();selection=B.emptySelection();renderCalendar();showPackage();
+  }catch(error){
+    console.error(error);
+    let message=error.message||"Ups, das hat nicht geklappt. Bitte versuche es erneut.";
+    if(error.code==="auth/operation-not-allowed")message="Firebase Anonymous-Anmeldung ist noch nicht aktiviert. Bitte aktiviere in Firebase Authentication die Anmeldemethode „Anonym“.";
+    if(error.code==="permission-denied")message="Firebase hat die Buchung abgelehnt. Bitte prüfe die Firestore-Sicherheitsregeln.";
+    say(message,"var(--pink)");
+  }finally{submit.disabled=false;}
 });
-(async()=>{try{await loadPackages();showPackage();availability=B.createAvailability(await loadBlocks(),firstBookable());renderCalendar();}catch(err){console.error(err);say(err.message+" Auf GitHub Pages kann PHP nicht ausgeführt werden; dafür braucht die Seite PHP-Webhosting.","var(--pink)");submit.disabled=true;}})();
+(async()=>{
+  try{
+    await loadPackages();showPackage();
+    availability=B.createAvailability(await loadBlocks(),firstBookable());renderCalendar();
+  }catch(error){console.error(error);say("Firebase konnte nicht geladen werden: "+(error.message||"Bitte später erneut versuchen."),"var(--pink)");submit.disabled=true;}
+})();
 </script>
 </body>
 </html>
