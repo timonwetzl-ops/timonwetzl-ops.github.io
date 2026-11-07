@@ -1,6 +1,6 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { initializeApp } = require("firebase-admin/app");
-const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
 const { createHash } = require("node:crypto");
 
 initializeApp();
@@ -71,7 +71,8 @@ async function consumeLimit(scope, identity, max, windowMs) {
     tx.set(ref, {
       windowStart: active ? data.windowStart : now,
       count: count + 1,
-      updatedAt: FieldValue.serverTimestamp()
+      updatedAt: FieldValue.serverTimestamp(),
+      expiresAt: Timestamp.fromMillis(now + 2 * windowMs)
     });
   });
 }
