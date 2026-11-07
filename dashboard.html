@@ -454,7 +454,7 @@
     const list = document.getElementById("imgList");
     list.innerHTML = "";
     images.forEach((url, i)=>{
-      list.innerHTML += `<div><img src="${safeImageUrl(url)}" alt=""><button onclick="removeImage(${i})">×</button></div>`;
+      list.innerHTML += `<div><img src="${escapeHtml(safeImageUrl(url))}" alt=""><button onclick="removeImage(${i})">×</button></div>`;
     });
   }
 
