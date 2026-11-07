@@ -15,6 +15,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: firebase-production-deploy
@@ -32,10 +33,11 @@ jobs:
         with:
           node-version: 20
 
-      - name: Bei Google Cloud anmelden
+      - name: Bei Google Cloud anmelden (Workload Identity Federation)
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_CANDYBAR_A33CA }}
+          workload_identity_provider: projects/310456556896/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: github-actions@candybar-a33ca.iam.gserviceaccount.com
 
       - name: Firebase CLI installieren
         run: npm install --global firebase-tools
