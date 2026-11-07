@@ -1,34 +1,36 @@
 # Firebase – Einrichtung für das Buchungssystem
 
 ## Status
-Der Branch `firebase-security-fix` enthält jetzt:
-- Buchungsformular mit Firebase statt PHP-API
-- Firebase Callable Function `createBooking` als vertrauenswürdigen Buchungs-Endpunkt
-- Transaktionale Tages-Sperren (Abholung nachmittags, Veranstaltung ganztägig, Rückgabe vormittags)
-- Firestore-Regeln, die öffentliche Schreibzugriffe auf Buchungen und Kalendersperren blockieren
-- Mail-Dokument an das Admin-Postfach als Vorbereitung für die Firebase-Erweiterung „Trigger Email“
 
-**Noch nicht veröffentlichen und PHP noch nicht löschen.** Die Einrichtung und Tests im Firebase-Projekt sind noch erforderlich.
+Der Branch `firebase-security-fix` enthält den Übergangsentwurf mit:
+- Callable Function `createBooking` für Buchungsanfragen
+- transaktionalen Tages-Sperren
+- Firestore-Regeln für Buchungen, Kalenderdaten und Kontaktanfragen
+- Storage-Regeln für Bilddateien
+- Admin-Dashboard mit Firebase-Authentication
+
+**Noch nicht veröffentlichen und PHP nicht löschen.** Die Integration und Tests im Firebase-Projekt sind noch erforderlich. Der Pull Request bleibt absichtlich ein Entwurf.
 
 ## Einmalige Einrichtung in der Firebase Console
 
 1. Projekt `candybar-a33ca` öffnen.
-2. Authentication → Sign-in method → **Anonym** aktivieren. Das Formular braucht diese Anmeldung für Gäste.
-3. Prüfen, dass Firestore Database bereits eingerichtet ist.
-4. Für automatische E-Mail-Benachrichtigungen die Firebase Extension **Trigger Email** installieren und mit einem SMTP-Anbieter konfigurieren. Die Erweiterung muss die Collection `mail` überwachen. Die Funktion legt dort nur eine Nachricht an das Admin-Postfach `vermietung.candybar@gmail.com` ab.
-5. Für Cloud Functions muss das Firebase-Projekt gegebenenfalls auf den Blaze-Tarif umgestellt werden. Firebase kann dafür nutzungsabhängige Kosten berechnen.
+2. Authentication → Sign-in method → **Anonym** aktivieren. Das Buchungsformular benötigt diese Anmeldung für Gäste.
+3. Prüfen, dass Firestore Database und Firebase Storage eingerichtet sind.
+4. Für automatische E-Mail-Benachrichtigungen die Firebase Extension **Trigger Email** installieren und mit einem SMTP-Anbieter konfigurieren. Die Erweiterung muss die Collection `mail` überwachen. Die Function legt dort eine Nachricht an das Admin-Postfach `vermietung.candybar@gmail.com` ab.
+5. Für Cloud Functions kann der Blaze-Tarif erforderlich sein. Dabei können nutzungsabhängige Kosten entstehen. Vor einer Aktivierung müssen die Kosten und das Budget geprüft werden.
 
-## Deployment (im Projektordner)
+## Deployment über GitHub Actions
 
-Mit installiertem Firebase CLI und angemeldetem Projektkonto:
+Die Datei `.github/workflows/deploy-firebase.yml` ist für GitHub Actions vorbereitet. Sie veröffentlicht:
+- Cloud Functions
+- Firestore-Regeln
+- Storage-Regeln
 
-```bash
-npm --prefix functions install
-firebase deploy --only functions:createBooking
-firebase deploy --only firestore:rules
-```
+Automatisches Deployment erfolgt nur nach Änderungen auf `main`. Der manuelle Workflow-Start ist ebenfalls vorgesehen. Die Anmeldung bei Google Cloud erfolgt über **Workload Identity Federation**.
 
-Vorher sicherstellen, dass das aktive Firebase-Projekt wirklich `candybar-a33ca` ist.
+Es wird **kein JSON-Servicekonto-Schlüssel und kein GitHub-Secret mit einem privaten Schlüssel** benötigt. Der Workload-Identity-Provider ist auf dieses Repository und den Branch `main` beschränkt.
+
+Wichtig: Der Workflow darf erst ausgeführt werden, wenn die Änderungen geprüft und für die Veröffentlichung freigegeben wurden. Der aktuelle Pull Request ist ein Entwurf und darf nicht allein zum Testen zusammengeführt werden.
 
 ## Noch zu testen
 
@@ -36,27 +38,19 @@ Vorher sicherstellen, dass das aktive Firebase-Projekt wirklich `candybar-a33ca`
 - Function-Deployment in `europe-west3`
 - Buchung mit freien Tagen
 - Zwei gleichzeitige Buchungen für denselben Zeitraum (nur eine darf durchgehen)
-- Bereits belegte Tage sowie 14-Tage-Vorlauf
-- Admin-Dashboard: Bestätigen und Ablehnen muss die Tages-Sperren korrekt ändern
+- Bereits belegte Tage und 14-Tage-Vorlauf
+- Admin-Dashboard: Statusänderungen und Tages-Sperren
 - E-Mail-Auslösung über „Trigger Email“
+- Bild-Upload, Ersetzen und Löschen über Firebase Storage
 - Bestehende Buchungen: vor dem Umschalten müssen alte Buchungen und Sperren übernommen bzw. geprüft werden
-- Bild-Uploads: Firebase Storage muss separat eingerichtet werden
+- Kontaktformular: Spam-Schutz und Begrenzung der Anfragen ergänzen
 
-## Wichtig
-Die Function nutzt Admin-SDK und umgeht dadurch bewusst die Firestore-Regeln. Browser-Clients können Buchungen und Tages-Sperren nicht direkt schreiben. Die Regeln müssen erst nach Tests im Firebase Emulator oder in einem Testprojekt veröffentlicht werden.
+## Sicherheits- und Veröffentlichungsgrenzen
 
+Die Function nutzt das Admin-SDK und umgeht dadurch bewusst die Firestore-Regeln. Browser-Clients dürfen Buchungen und Tages-Sperren nicht direkt schreiben.
 
-## Automatisches Deployment über GitHub Actions
+Öffentliche Kalenderdaten enthalten nur die für die Verfügbarkeitsanzeige erforderlichen Datumsfelder, keine Kunden-UID oder Kontaktdaten.
 
-Die Workflow-Datei `.github/workflows/deploy-firebase.yml` ist vorbereitet. Sie veröffentlicht Functions und Firestore-Regeln automatisch, sobald Änderungen daran auf `main` landen. Ein manueller Start ist außerdem unter GitHub → Actions → Deploy Firebase möglich.
+Die Regeln und Functions müssen zuerst in einer Testumgebung geprüft werden. Bestehende Website- und PHP-Dateien bleiben bis zur abgeschlossenen Integration und Migration unverändert.
 
-Dafür fehlt noch ein GitHub-Repository-Secret:
-
-- Name: `FIREBASE_SERVICE_ACCOUNT_CANDYBAR_A33CA`
-- Inhalt: JSON-Schlüssel eines Google-Cloud-Servicekontos, das für das Firebase-Projekt `candybar-a33ca` die nötigen Deployment-Berechtigungen besitzt.
-
-Das Secret wird in GitHub unter Settings → Secrets and variables → Actions → New repository secret angelegt. Den JSON-Schlüssel ausschließlich dort einfügen – niemals in eine Datei im Repository, einen Chat oder einen Commit. Den Schlüssel nicht an andere Personen weitergeben.
-
-Die Einrichtung des Servicekontos und seiner Berechtigungen muss in Google Cloud/Firebase durch den Projektinhaber bzw. einen berechtigten Erwachsenen erfolgen. Für Cloud Functions kann außerdem der Blaze-Tarif erforderlich sein und nutzungsabhängige Kosten verursachen.
-
-Bis das Secret angelegt ist und der Workflow erfolgreich durchgelaufen ist, ist Firebase **noch nicht veröffentlicht**. Die Website- und PHP-Dateien bleiben bis zum erfolgreichen Test unverändert.
+**Nicht deployen und nicht zusammenführen**, bis Integration, Migration, Sicherheitsprüfung und Tests abgeschlossen sind.
