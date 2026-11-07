@@ -1,38 +1,46 @@
-# Firebase – Status des Buchungssystem-Entwurfs
+# Firebase – Einrichtung für das Buchungssystem
 
-## WICHTIG: Noch nicht veröffentlichen
+## Status
+Der Branch `firebase-security-fix` enthält jetzt:
+- Buchungsformular mit Firebase statt PHP-API
+- Firebase Callable Function `createBooking` als vertrauenswürdigen Buchungs-Endpunkt
+- Transaktionale Tages-Sperren (Abholung nachmittags, Veranstaltung ganztägig, Rückgabe vormittags)
+- Firestore-Regeln, die öffentliche Schreibzugriffe auf Buchungen und Kalendersperren blockieren
+- Mail-Dokument an das Admin-Postfach als Vorbereitung für die Firebase-Erweiterung „Trigger Email“
 
-Dieser Branch ist ein technischer Entwurf und **nicht produktionsbereit**. Bitte die Regeln aus `firestore.rules` noch nicht in Firebase veröffentlichen und den Pull Request nicht zusammenführen.
+**Noch nicht veröffentlichen und PHP noch nicht löschen.** Die Einrichtung und Tests im Firebase-Projekt sind noch erforderlich.
 
-Die Firestore-Transaktion setzt Buchung, Kalendersperre und Tages-Sperren gemeinsam. Das schützt den normalen Ablauf über das Buchungsformular vor zeitgleichen Doppelbuchungen. Die Firestore-Regeln erzwingen derzeit aber noch nicht vollständig, dass ein direkter Datenbankzugriff für jeden einzelnen Veranstaltungstag sämtliche korrekten Tages-Sperren setzt. Ein Angreifer könnte diese Prüfung umgehen. Eine reine Browser-Lösung kann das nicht zuverlässig absichern.
+## Einmalige Einrichtung in der Firebase Console
 
-## Was für den Entwurf benötigt wird
+1. Projekt `candybar-a33ca` öffnen.
+2. Authentication → Sign-in method → **Anonym** aktivieren. Das Formular braucht diese Anmeldung für Gäste.
+3. Prüfen, dass Firestore Database bereits eingerichtet ist.
+4. Für automatische E-Mail-Benachrichtigungen die Firebase Extension **Trigger Email** installieren und mit einem SMTP-Anbieter konfigurieren. Die Erweiterung muss die Collection `mail` überwachen. Die Funktion legt dort nur eine Nachricht an das Admin-Postfach `vermietung.candybar@gmail.com` ab.
+5. Für Cloud Functions muss das Firebase-Projekt gegebenenfalls auf den Blaze-Tarif umgestellt werden. Firebase kann dafür nutzungsabhängige Kosten berechnen.
 
-1. Firebase Authentication: anonyme Anmeldung für Gäste.
-2. Firestore: Regeln erst nach Ergänzung und Test eines vertrauenswürdigen Backend-Endpunkts veröffentlichen.
-3. Storage: Im Firebase-Projekt ist Storage derzeit nicht eingerichtet. Die Datei `storage.rules` allein aktiviert es nicht.
+## Deployment (im Projektordner)
 
-## Aktueller Funktionsstand
+Mit installiertem Firebase CLI und angemeldetem Projektkonto:
 
-- Das Buchungsformular meldet Gäste anonym an.
-- Buchung, öffentlicher Kalendereintrag und Tages-Sperren werden in einer Firestore-Transaktion geschrieben.
-- Die Tages-Sperren unterscheiden Abholung am Nachmittag, Veranstaltungstage ganztägig und Rückgabe am Vormittag.
-- Statusänderungen im Dashboard aktualisieren Buchung und Sperren gemeinsam.
-- Gäste sehen die öffentliche Sperrliste, nicht die privaten Buchungsdetails.
-- Der Admin-Zugriff verlangt das bestätigte Admin-Konto.
+```bash
+npm --prefix functions install
+firebase deploy --only functions:createBooking
+firebase deploy --only firestore:rules
+```
 
-## Noch offen
+Vorher sicherstellen, dass das aktive Firebase-Projekt wirklich `candybar-a33ca` ist.
 
-- **E-Mail-Benachrichtigung:** Es wird noch keine automatische E-Mail bei einer neuen Buchung verschickt. Dafür braucht es einen vertrauenswürdigen Maildienst oder Backend. Private Mail-Zugangsdaten dürfen nicht im Browser-JavaScript liegen.
-- **Serverseitige Buchungsprüfung:** Ein Backend muss Buchungsdaten validieren und alle Tages-Sperren verbindlich setzen.
-- **Tests:** Die Regeln und Transaktionen wurden noch nicht in einer Firebase-Testumgebung ausgeführt.
-- **Alte Buchungen:** Vor einer Umstellung müssen bestehende Buchungen berücksichtigt und ihre Zeiträume gesperrt werden.
-- **Bild-Uploads:** Storage ist derzeit nicht eingerichtet; Uploads funktionieren deshalb nicht verlässlich.
+## Noch zu testen
 
-## Lokaler Logiktest
+- Anonyme Anmeldung im echten Firebase-Projekt
+- Function-Deployment in `europe-west3`
+- Buchung mit freien Tagen
+- Zwei gleichzeitige Buchungen für denselben Zeitraum (nur eine darf durchgehen)
+- Bereits belegte Tage sowie 14-Tage-Vorlauf
+- Admin-Dashboard: Bestätigen und Ablehnen muss die Tages-Sperren korrekt ändern
+- E-Mail-Auslösung über „Trigger Email“
+- Bestehende Buchungen: vor dem Umschalten müssen alte Buchungen und Sperren übernommen bzw. geprüft werden
+- Bild-Uploads: Firebase Storage muss separat eingerichtet werden
 
-Unter `tests/booking-locks.html` liegt ein kleiner Browser-Test für die Datums- und Halbtagssperren. Die Datei kann lokal zusammen mit `booking-logic.js` geöffnet werden. Sie prüft nur die reine Logik, nicht die Firebase-Sicherheitsregeln oder echte Transaktionen.
-
-## Nächster sinnvoller Schritt
-
-Die Buchungslogik braucht einen kleinen vertrauenswürdigen Backend-Endpunkt. Erst danach sollten die Regeln getestet und veröffentlicht werden. Bis dahin bleibt die bisherige Live-Website auf `main` unverändert.
+## Wichtig
+Die Function nutzt Admin-SDK und umgeht dadurch bewusst die Firestore-Regeln. Browser-Clients können Buchungen und Tages-Sperren nicht direkt schreiben. Die Regeln müssen erst nach Tests im Firebase Emulator oder in einem Testprojekt veröffentlicht werden.
