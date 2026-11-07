@@ -148,13 +148,13 @@
     return String(value ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#39;");
   }
   function safeImageUrl(value){
-    try { const url = new URL(String(value || ""), location.origin); return url.protocol === "https:" ? escapeHtml(url.href) : ""; }
+    try { const url = new URL(String(value || ""), location.origin); return url.protocol === "https:" ? url.href : ""; }
     catch { return ""; }
   }
   function dateText(b){
-    if(b.firstEventDay && b.lastEventDay && b.lastEventDay !== b.firstEventDay) return `${nice(b.firstEventDay)} – ${nice(b.lastEventDay)}<br><span style="font-size:.75rem;color:var(--cream-dim)">${b.eventDays} Tage · Abholung ${nice(b.startDate)} · Rückgabe ${nice(b.endDate)}</span>`;
+    if(b.firstEventDay && b.lastEventDay && b.lastEventDay !== b.firstEventDay) return `${escapeHtml(nice(b.firstEventDay))} – ${escapeHtml(nice(b.lastEventDay))}<br><span style="font-size:.75rem;color:var(--cream-dim)">${escapeHtml(b.eventDays)} Tage · Abholung ${escapeHtml(nice(b.startDate))} · Rückgabe ${escapeHtml(nice(b.endDate))}</span>`;
     if(b.firstEventDay) return `${nice(b.firstEventDay)}<br><span style="font-size:.75rem;color:var(--cream-dim)">Abholung ${nice(b.startDate)} · Rückgabe ${nice(b.endDate)}</span>`;
-    return b.eventDate || "";
+    return escapeHtml(b.eventDate || "");
   }
   import {
     collection, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc, runTransaction
@@ -389,11 +389,11 @@
             <label class="fileBtn">📷 Bild hinzufügen
               <input type="file" accept="image/*" onchange="handlePackageUpload(event,'${id}')">
             </label>
-            <button class="danger" onclick="deletePackage('${id}', '${p.name||id}')">Zurücksetzen</button>
+            <button class="danger" onclick="deletePackage('${id}', ${escapeHtml(JSON.stringify(p.name||id))})">Zurücksetzen</button>
           </div>
           <div class="imgList" id="pkgImgs-${id}">
             ${images.map((url,i)=>`
-              <div><img src="${safeImageUrl(url)}" alt=""><button onclick="removePackageImage('${escapeHtml(id)}', ${i})">×</button></div>`).join("")}
+              <div><img src="${escapeHtml(safeImageUrl(url))}" alt=""><button onclick="removePackageImage('${escapeHtml(id)}', ${i})">×</button></div>`).join("")}
           </div>
         </div>`;
     }
