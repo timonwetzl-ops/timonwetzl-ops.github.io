@@ -44,3 +44,19 @@ Vorher sicherstellen, dass das aktive Firebase-Projekt wirklich `candybar-a33ca`
 
 ## Wichtig
 Die Function nutzt Admin-SDK und umgeht dadurch bewusst die Firestore-Regeln. Browser-Clients können Buchungen und Tages-Sperren nicht direkt schreiben. Die Regeln müssen erst nach Tests im Firebase Emulator oder in einem Testprojekt veröffentlicht werden.
+
+
+## Automatisches Deployment über GitHub Actions
+
+Die Workflow-Datei `.github/workflows/deploy-firebase.yml` ist vorbereitet. Sie veröffentlicht Functions und Firestore-Regeln automatisch, sobald Änderungen daran auf `main` landen. Ein manueller Start ist außerdem unter GitHub → Actions → Deploy Firebase möglich.
+
+Dafür fehlt noch ein GitHub-Repository-Secret:
+
+- Name: `FIREBASE_SERVICE_ACCOUNT_CANDYBAR_A33CA`
+- Inhalt: JSON-Schlüssel eines Google-Cloud-Servicekontos, das für das Firebase-Projekt `candybar-a33ca` die nötigen Deployment-Berechtigungen besitzt.
+
+Das Secret wird in GitHub unter Settings → Secrets and variables → Actions → New repository secret angelegt. Den JSON-Schlüssel ausschließlich dort einfügen – niemals in eine Datei im Repository, einen Chat oder einen Commit. Den Schlüssel nicht an andere Personen weitergeben.
+
+Die Einrichtung des Servicekontos und seiner Berechtigungen muss in Google Cloud/Firebase durch den Projektinhaber bzw. einen berechtigten Erwachsenen erfolgen. Für Cloud Functions kann außerdem der Blaze-Tarif erforderlich sein und nutzungsabhängige Kosten verursachen.
+
+Bis das Secret angelegt ist und der Workflow erfolgreich durchgelaufen ist, ist Firebase **noch nicht veröffentlicht**. Die Website- und PHP-Dateien bleiben bis zum erfolgreichen Test unverändert.
