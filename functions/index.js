@@ -86,7 +86,6 @@ async function enforceRateLimit(request, scope, maxPerIp, windowMs, maxPerUser) 
 
 exports.createBooking = onCall({ region: "europe-west3" }, async request => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Bitte lade die Seite neu.");
-  await enforceRateLimit(request, "booking", 8, 24 * 60 * 60 * 1000, 4);
   const input = request.data || {};
   const name = clean(input.name, 120);
   const email = clean(input.email, 254);
@@ -108,6 +107,7 @@ exports.createBooking = onCall({ region: "europe-west3" }, async request => {
     throw new HttpsError("invalid-argument", "Ein Zeitraum darf höchstens 14 Veranstaltungstage umfassen.");
   if (shiftDate(berlinToday(), 14) > start)
     throw new HttpsError("failed-precondition", "Buchungen sind frühestens 14 Tage im Voraus möglich.");
+  await enforceRateLimit(request, "booking", 8, 24 * 60 * 60 * 1000, 4);
 
   const packageSnap = await db.doc("packages/" + packageId).get();
   const basePrice = priceFrom(packageSnap.exists ? packageSnap.data().price : null, DEFAULT_PRICES[packageId]);
@@ -158,18 +158,18 @@ exports.createBooking = onCall({ region: "europe-west3" }, async request => {
 
 
 exports.createContact = onCall({ region: "europe-west3" }, async request => {
-  await enforceRateLimit(request, "contact", 3, 60 * 60 * 1000);
   const input = request.data || {};
   // Honeypot: Bots, die das versteckte Feld ausfüllen, werden ohne Speicherung abgewiesen.
   if (clean(input.website, 200)) return { ok: true };
   const name = clean(input.name, 120);
   const email = clean(input.email, 254);
   const address = clean(input.address, 300);
-  const subject = clean(input.subject, 160);
+  const subject = clean(input.subject, 160).replace(/[\\r\\n]/g, " ");
   const message = clean(input.message, 5000);
   if (!name || !email || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || !message) {
     throw new HttpsError("invalid-argument", "Bitte prüfe Name, E-Mail-Adresse und Nachricht.");
   }
+  await enforceRateLimit(request, "contact", 3, 60 * 60 * 1000);
   const contactRef = db.collection("contacts").doc();
   await db.runTransaction(async tx => {
     tx.create(contactRef, {
