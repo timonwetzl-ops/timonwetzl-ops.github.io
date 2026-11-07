@@ -52,7 +52,7 @@ Wichtig: Der Workflow darf erst ausgeführt werden, wenn die Änderungen geprüf
 - Kontaktformular: Rate-Limit (3 Anfragen je IP und Stunde), Honeypot und serverseitige Validierung prüfen
 - Buchungsformular: Rate-Limit (8 Anfragen je IP und 4 je Nutzer pro 24 Stunden) prüfen
 - App Check in Firebase registrieren und nach Einrichtung in beiden Callable Functions erzwingen
-- Rate-Limit-Dokumente regelmäßig bereinigen (Firestore TTL oder geplanter Bereinigungsjob)
+- Firestore TTL für `rateLimits.expiresAt` in der Firebase Console aktivieren; die Functions setzen das Ablaufdatum automatisch auf zwei Zeitfenster nach dem jeweiligen Versuch
 
 ## Sicherheits- und Veröffentlichungsgrenzen
 
