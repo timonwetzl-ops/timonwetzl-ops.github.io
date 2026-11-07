@@ -184,6 +184,8 @@
     });
   }
 
+  checkAdminAuth();
+
   window.adminSignOut = async function(){
     try { await signOut(auth); } finally { location.reload(); }
   };
