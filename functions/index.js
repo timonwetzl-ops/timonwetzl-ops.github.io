@@ -1,6 +1,7 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+const { createHash } = require("node:crypto");
 
 initializeApp();
 const db = getFirestore();
@@ -47,8 +48,45 @@ function clean(value, max) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
 
+function requestIp(request) {
+  const ip = request.rawRequest && request.rawRequest.ip;
+  if (typeof ip !== "string" || !ip) {
+    throw new HttpsError("unavailable", "Der Sicherheitscheck ist gerade nicht verfügbar. Bitte versuche es später erneut.");
+  }
+  return createHash("sha256").update(ip).digest("hex");
+}
+
+async function consumeLimit(scope, identity, max, windowMs) {
+  const id = createHash("sha256").update(scope + ":" + identity).digest("hex");
+  const ref = db.collection("rateLimits").doc(id);
+  const now = Date.now();
+  await db.runTransaction(async tx => {
+    const snap = await tx.get(ref);
+    const data = snap.exists ? snap.data() : {};
+    const active = Number(data.windowStart) > 0 && now - Number(data.windowStart) < windowMs;
+    const count = active ? Number(data.count || 0) : 0;
+    if (count >= max) {
+      throw new HttpsError("resource-exhausted", "Zu viele Anfragen in kurzer Zeit. Bitte versuche es später erneut.");
+    }
+    tx.set(ref, {
+      windowStart: active ? data.windowStart : now,
+      count: count + 1,
+      updatedAt: FieldValue.serverTimestamp()
+    });
+  });
+}
+
+async function enforceRateLimit(request, scope, maxPerIp, windowMs, maxPerUser) {
+  const ipHash = requestIp(request);
+  await consumeLimit(scope + ":ip", ipHash, maxPerIp, windowMs);
+  if (maxPerUser && request.auth) {
+    await consumeLimit(scope + ":user", request.auth.uid, maxPerUser, windowMs);
+  }
+}
+
 exports.createBooking = onCall({ region: "europe-west3" }, async request => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Bitte lade die Seite neu.");
+  await enforceRateLimit(request, "booking", 8, 24 * 60 * 60 * 1000, 4);
   const input = request.data || {};
   const name = clean(input.name, 120);
   const email = clean(input.email, 254);
@@ -116,4 +154,35 @@ exports.createBooking = onCall({ region: "europe-west3" }, async request => {
     });
   });
   return { bookingId: bookingRef.id, priceCents: Math.round(totalPrice * 100), depositCents: DEPOSIT * 100 };
+});
+
+
+exports.createContact = onCall({ region: "europe-west3" }, async request => {
+  await enforceRateLimit(request, "contact", 3, 60 * 60 * 1000);
+  const input = request.data || {};
+  // Honeypot: Bots, die das versteckte Feld ausfüllen, werden ohne Speicherung abgewiesen.
+  if (clean(input.website, 200)) return { ok: true };
+  const name = clean(input.name, 120);
+  const email = clean(input.email, 254);
+  const address = clean(input.address, 300);
+  const subject = clean(input.subject, 160);
+  const message = clean(input.message, 5000);
+  if (!name || !email || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || !message) {
+    throw new HttpsError("invalid-argument", "Bitte prüfe Name, E-Mail-Adresse und Nachricht.");
+  }
+  const contactRef = db.collection("contacts").doc();
+  await db.runTransaction(async tx => {
+    tx.create(contactRef, {
+      name, email, address, subject, message,
+      createdAt: FieldValue.serverTimestamp()
+    });
+    tx.create(db.collection("mail").doc(), {
+      to: [ADMIN_EMAIL],
+      message: {
+        subject: subject ? "Neue Kontaktanfrage: " + subject : "Neue Kontaktanfrage",
+        text: "Neue Kontaktanfrage von " + name + "\\nE-Mail: " + email + "\\nAdresse: " + address + "\\nBetreff: " + subject + "\\nNachricht: " + message
+      }
+    });
+  });
+  return { ok: true };
 });
