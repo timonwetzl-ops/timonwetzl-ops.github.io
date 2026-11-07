@@ -21,6 +21,32 @@ jobs:
         run: |
           node --check backend/cloudflare/worker.js
           node --check functions/index.js
+      - name: Frontend module syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          import subprocess
+          import tempfile
+
+          sources = [
+              "firebase-init.js", "firebase-config.js", "booking-logic.js",
+              "booking-store.js", "packages-default.js", "nav.js"
+          ]
+          for source in sources:
+              with tempfile.NamedTemporaryFile("w", suffix=".mjs", encoding="utf-8") as temp:
+                  temp.write(Path(source).read_text(encoding="utf-8"))
+                  temp.flush()
+                  subprocess.run(["node", "--check", temp.name], check=True)
+
+          for page in ["anfrage.html", "kontakt.html", "dashboard.html"]:
+              html = Path(page).read_text(encoding="utf-8")
+              for index, script in enumerate(re.findall(r'<script type="module">(.*?)</script>', html, re.S)):
+                  with tempfile.NamedTemporaryFile("w", suffix=".mjs", encoding="utf-8") as temp:
+                      temp.write(script)
+                      temp.flush()
+                      subprocess.run(["node", "--check", temp.name], check=True)
+          PY
       - name: PHP syntax
         run: |
           php -l backend/php/lib/bootstrap.php
