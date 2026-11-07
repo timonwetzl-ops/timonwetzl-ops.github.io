@@ -2,6 +2,8 @@
 
 ## Status
 
+Cloud Functions verwenden Node.js 22 (von Firebase unterstützt).
+
 Der Branch `firebase-security-fix` enthält den Übergangsentwurf mit:
 - Callable Functions `createBooking` und `createContact` für Buchungs- und Kontaktanfragen
 - serverseitige IP- und Nutzer-Begrenzung gegen massenhafte Anfragen
@@ -18,8 +20,10 @@ Der Branch `firebase-security-fix` enthält den Übergangsentwurf mit:
 1. Projekt `candybar-a33ca` öffnen.
 2. Authentication → Sign-in method → **Anonym** aktivieren. Das Buchungsformular benötigt diese Anmeldung für Gäste.
 3. Prüfen, dass Firestore Database und Firebase Storage eingerichtet sind.
-4. Für automatische E-Mail-Benachrichtigungen die Firebase Extension **Trigger Email** installieren und mit einem SMTP-Anbieter konfigurieren. Die Erweiterung muss die Collection `mail` überwachen. Die Function legt dort eine Nachricht an das Admin-Postfach `vermietung.candybar@gmail.com` ab.
-5. Für Cloud Functions kann der Blaze-Tarif erforderlich sein. Dabei können nutzungsabhängige Kosten entstehen. Vor einer Aktivierung müssen die Kosten und das Budget geprüft werden.
+4. Die Callable Functions verwenden derzeit serverseitige Rate-Limits: höchstens 8 Buchungsversuche pro IP und 4 pro angemeldetem Nutzer innerhalb von 24 Stunden sowie 3 Kontaktanfragen pro IP und Stunde. Die IP wird nur als SHA-256-Hash in `rateLimits` gespeichert.
+5. App Check in Firebase registrieren und nach Einrichtung in beiden Callable Functions erzwingen. Bis dahin sind Rate-Limits und Honeypot zusätzlicher, aber kein vollständiger Bot-Schutz.
+6. Für automatische E-Mail-Benachrichtigungen die Firebase Extension **Trigger Email** installieren und mit einem SMTP-Anbieter konfigurieren. Die Erweiterung muss die Collection `mail` überwachen. Die Function legt dort eine Nachricht an das Admin-Postfach `vermietung.candybar@gmail.com` ab.
+7. Für Cloud Functions kann der Blaze-Tarif erforderlich sein. Dabei können nutzungsabhängige Kosten entstehen. Vor einer Aktivierung müssen die Kosten und das Budget geprüft werden.
 
 ## Deployment über GitHub Actions
 
