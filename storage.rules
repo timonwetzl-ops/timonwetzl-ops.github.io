@@ -7,12 +7,17 @@ service firebase.storage {
         && request.auth.token.email_verified == true;
     }
 
-    // Bilder sind öffentlich abrufbar; nur das verifizierte Admin-Konto darf hochladen/löschen.
+    // Bilder sind öffentlich abrufbar; nur das verifizierte Admin-Konto darf verwalten.
     match /{allPaths=**} {
       allow read: if true;
       allow write: if isAdmin()
-        && request.resource.size < 8 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
+        && (
+          request.resource == null
+          || (
+            request.resource.size < 8 * 1024 * 1024
+            && request.resource.contentType.matches('image/.*')
+          )
+        );
     }
   }
 }
