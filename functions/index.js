@@ -180,7 +180,7 @@ exports.createContact = onCall({ region: "europe-west3" }, async request => {
       to: [ADMIN_EMAIL],
       message: {
         subject: subject ? "Neue Kontaktanfrage: " + subject : "Neue Kontaktanfrage",
-        text: "Neue Kontaktanfrage von " + name + "\\nE-Mail: " + email + "\\nAdresse: " + address + "\\nBetreff: " + subject + "\\nNachricht: " + message
+        text: "Neue Kontaktanfrage von " + name + "\nE-Mail: " + email + "\nAdresse: " + address + "\nBetreff: " + subject + "\nNachricht: " + message
       }
     });
   });
