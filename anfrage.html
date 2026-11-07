@@ -70,13 +70,13 @@
 import * as B from "./booking-logic.js";
 import { db, auth } from "./firebase-init.js";
 import { getAllPackages } from "./packages-default.js";
-import { createStore } from "./booking-store.js";
 import {
-  collection, getDocs, doc, serverTimestamp, runTransaction
+  collection, getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
 
-const bookingStore=createStore({collection,getDocs,doc,runTransaction,serverTimestamp},db);
+const createBookingCall=httpsCallable(getFunctions(undefined,"europe-west3"),"createBooking");
 const params=new URLSearchParams(location.search);
 let packages=[],selection=B.emptySelection();
 let availability=B.createAvailability([],B.addDays(B.fmt(new Date()),B.LEAD_DAYS));
@@ -140,36 +140,20 @@ document.getElementById("bookingForm").addEventListener("submit",async event=>{
     const fresh=B.createAvailability(await loadBlocks(),firstBookable());
     if(!fresh.validEventRange(selection.first,selection.last)){availability=fresh;selection=B.emptySelection();renderCalendar();throw Error("Der Zeitraum ist leider nicht mehr frei. Bitte wähle einen anderen.");}
     say("Buchungsanfrage wird sicher gespeichert …");
-    const user=auth.currentUser|| (await signInAnonymously(auth)).user;
-    const eventDays=B.eventDayCount(selection.first,selection.last);
-    const dates=B.periodFor(selection.first,selection.last);
-    const price=p.priceCents/100+(eventDays-1)*B.EXTRA_DAY_PRICE;
+    if(!auth.currentUser) await signInAnonymously(auth);
     const payload={
-      uid:user.uid,
       name:document.getElementById("f_name").value.trim(),
       email:document.getElementById("f_email").value.trim(),
       phone:document.getElementById("f_phone").value.trim(),
       location:document.getElementById("f_location").value.trim(),
-      package:p.name,
-      firstEventDay:selection.first,
-      lastEventDay:selection.last,
+      packageId:p.id,
       eventStart:selection.first,
       eventEnd:selection.last,
-      eventDays,
-      startDate:dates.pickup,
-      endDate:dates.ret,
-      eventDate:selection.first,
-      basePrice:p.priceCents/100,
-      extraDayPrice:B.EXTRA_DAY_PRICE,
-      price,
-      deposit:B.DEPOSIT,
-      message:document.getElementById("f_message").value.trim(),
-      bookingStatus:"neu",
-      paymentStatus:"offen",
-      paidAmount:0
+      message:document.getElementById("f_message").value.trim()
     };
-    const bookingRef=doc(collection(db,"bookings"));
-    await bookingStore.reserve(bookingRef.id,payload);
+    const response=await createBookingCall(payload);
+    const result=response.data;
+    const price=result.priceCents/100;
     say("Danke! Deine Anfrage ist eingegangen. Gesamtmietpreis: "+price.toLocaleString("de-DE",{style:"currency",currency:"EUR"})+". Kaution: "+B.DEPOSIT+" €. Wir melden uns per E-Mail.","var(--mint)");
     document.getElementById("bookingForm").reset();selection=B.emptySelection();renderCalendar();showPackage();
   }catch(error){
