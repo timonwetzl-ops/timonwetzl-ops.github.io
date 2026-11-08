@@ -129,6 +129,31 @@ exports.createBooking = onCall({ region: "europe-west3" }, async request => {
   };
 
   await db.runTransaction(async tx => {
+    // Alte Buchungen aus dem bisherigen System haben eventuell noch keine dayLocks.
+    // Deshalb werden die öffentlichen Sperreinträge UND vorhandene Buchungen
+    // innerhalb derselben Transaktion zusätzlich auf Überschneidungen geprüft.
+    const blockedQuery = db.collection("blocked").where("startDate", "<=", booking.endDate);
+    const bookingsQuery = db.collection("bookings").where("startDate", "<=", booking.endDate);
+    const [blockedSnap, bookingsSnap] = await Promise.all([
+      tx.get(blockedQuery),
+      tx.get(bookingsQuery)
+    ]);
+    const overlaps = (data) => {
+      const oldStart = data.startDate;
+      const oldEnd = data.endDate || oldStart;
+      return typeof oldStart === "string" && typeof oldEnd === "string"
+        && oldStart <= booking.endDate && oldEnd >= booking.startDate;
+    };
+    if (blockedSnap.docs.some(doc => overlaps(doc.data()))) {
+      throw new HttpsError("already-exists", "Der Zeitraum ist bereits belegt. Bitte wähle andere Tage.");
+    }
+    if (bookingsSnap.docs.some(doc => {
+      const data = doc.data();
+      return data.bookingStatus !== "abgelehnt" && data.status !== "abgelehnt" && overlaps(data);
+    })) {
+      throw new HttpsError("already-exists", "Der Zeitraum ist durch eine bestehende Buchung belegt. Bitte wähle andere Tage.");
+    }
+
     const snapshots = [];
     for (const ref of lockRefs) snapshots.push(await tx.get(ref));
     for (let i = 0; i < plan.length; i++) {
