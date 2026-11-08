@@ -8,7 +8,7 @@ Der Branch `firebase-security-fix` enthält den Übergangsentwurf mit:
 - Callable Functions `createBooking` und `createContact` für Buchungs- und Kontaktanfragen
 - serverseitige IP- und Nutzer-Begrenzung gegen massenhafte Anfragen
 - verstecktes Honeypot-Feld im Kontaktformular
-- transaktionalen Tages-Sperren
+- transaktionalen Tages-Sperren inklusive zusätzlicher Prüfung älterer Buchungen und Sperreinträge
 - Firestore-Regeln für Buchungen, Kalenderdaten und Kontaktanfragen
 - Storage-Regeln für Bilddateien
 - Admin-Dashboard mit Firebase-Authentication
@@ -21,11 +21,11 @@ Der Branch `firebase-security-fix` enthält den Übergangsentwurf mit:
 2. Authentication → Sign-in method → **Anonym** aktivieren. Das Buchungsformular benötigt diese Anmeldung für Gäste.
 3. Prüfen, dass Firestore Database und Firebase Storage eingerichtet sind.
 4. Die Callable Functions verwenden derzeit serverseitige Rate-Limits: höchstens 8 Buchungsversuche pro IP und 4 pro angemeldetem Nutzer innerhalb von 24 Stunden sowie 3 Kontaktanfragen pro IP und Stunde. Die IP wird nur als SHA-256-Hash in `rateLimits` gespeichert.
-5. App Check in Firebase registrieren und nach Einrichtung in beiden Callable Functions erzwingen. Bis dahin sind Rate-Limits und Honeypot zusätzlicher, aber kein vollständiger Bot-Schutz.
+5. App Check in Firebase registrieren. Zuerst die Website mit dem gewählten Anbieter und dem öffentlichen Site-Key verbinden und in der Testumgebung prüfen. Erst danach `enforceAppCheck: true` bei `createBooking` und `createContact` aktivieren. Vorher darf App Check serverseitig nicht erzwungen werden, sonst schlagen legitime Anfragen fehl. Bis zur Aktivierung sind Rate-Limits und Honeypot zusätzlicher, aber kein vollständiger Bot-Schutz.
 6. Für automatische E-Mail-Benachrichtigungen die Firebase Extension **Trigger Email** installieren und mit einem SMTP-Anbieter konfigurieren. Die Erweiterung muss die Collection `mail` überwachen. Die Function legt dort eine Nachricht an das Admin-Postfach `vermietung.candybar@gmail.com` ab.
 7. Für Cloud Functions kann der Blaze-Tarif erforderlich sein. Dabei können nutzungsabhängige Kosten entstehen. Vor einer Aktivierung müssen die Kosten und das Budget geprüft werden.
 
-## Deployment über GitHub Actions
+## Firestore-TTL für Rate-Limits aktivieren\n\nDie Functions schreiben `expiresAt` als Firestore-Timestamp. Damit alte Zähler automatisch gelöscht werden, muss die TTL-Richtlinie einmalig in der Firebase Console eingerichtet werden:\n\n1. Firestore Database öffnen.\n2. Den Bereich **Time-to-live (TTL)** öffnen.\n3. Eine Richtlinie für Collection Group `rateLimits` und Feld `expiresAt` erstellen.\n4. Speichern und warten, bis der Status der Richtlinie aktiv ist. Die Löschung erfolgt anschließend automatisch und nicht sekundengenau.\n\nOhne diese Richtlinie funktionieren die Rate-Limits weiterhin; die alten Zähler werden dann nur nicht automatisch aufgeräumt.\n\n## Deployment über GitHub Actions
 
 Die Datei `.github/workflows/deploy-firebase.yml` ist für GitHub Actions vorbereitet. Sie veröffentlicht:
 - Cloud Functions
@@ -44,7 +44,7 @@ Wichtig: Der Workflow darf erst ausgeführt werden, wenn die Änderungen geprüf
 - Function-Deployment in `europe-west3`
 - Buchung mit freien Tagen
 - Zwei gleichzeitige Buchungen für denselben Zeitraum (nur eine darf durchgehen)
-- Bereits belegte Tage und 14-Tage-Vorlauf
+- Bereits belegte Tage und 14-Tage-Vorlauf\n- Alte Buchungen ohne `dayLocks` sowie alte `blocked`-Einträge müssen serverseitig jede Überschneidung verhindern
 - Admin-Dashboard: Statusänderungen und Tages-Sperren
 - E-Mail-Auslösung über „Trigger Email“
 - Bild-Upload, Ersetzen und Löschen über Firebase Storage
