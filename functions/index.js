@@ -132,22 +132,35 @@ exports.createBooking = onCall({ region: "europe-west3" }, async request => {
     // Alte Buchungen aus dem bisherigen System haben eventuell noch keine dayLocks.
     // Deshalb werden die öffentlichen Sperreinträge UND vorhandene Buchungen
     // innerhalb derselben Transaktion zusätzlich auf Überschneidungen geprüft.
-    const blockedQuery = db.collection("blocked").where("startDate", "<=", booking.endDate);
-    const bookingsQuery = db.collection("bookings").where("startDate", "<=", booking.endDate);
-    const [blockedSnap, bookingsSnap] = await Promise.all([
-      tx.get(blockedQuery),
-      tx.get(bookingsQuery)
+    const blockedByRange = db.collection("blocked").where("startDate", "<=", booking.endDate);
+    const blockedByLegacyDate = db.collection("blocked").where("eventDate", "<=", booking.endDate);
+    const bookingsByRange = db.collection("bookings").where("startDate", "<=", booking.endDate);
+    const bookingsByLegacyDate = db.collection("bookings").where("eventDate", "<=", booking.endDate);
+    const [blockedRangeSnap, blockedLegacySnap, bookingsRangeSnap, bookingsLegacySnap] = await Promise.all([
+      tx.get(blockedByRange),
+      tx.get(blockedByLegacyDate),
+      tx.get(bookingsByRange),
+      tx.get(bookingsByLegacyDate)
     ]);
     const overlaps = (data) => {
-      const oldStart = data.startDate;
-      const oldEnd = data.endDate || oldStart;
+      // Neuere Datensätze speichern Abhol- und Rückgabetag direkt.
+      // Ältere Datensätze haben teils nur eventDate (Veranstaltungstag).
+      const oldStart = data.startDate || (validDate(data.eventDate) ? shiftDate(data.eventDate, -1) : null);
+      const oldEnd = data.endDate || (validDate(data.eventDate) ? shiftDate(data.eventDate, 1) : oldStart);
       return typeof oldStart === "string" && typeof oldEnd === "string"
         && oldStart <= booking.endDate && oldEnd >= booking.startDate;
     };
-    if (blockedSnap.docs.some(doc => overlaps(doc.data()))) {
+    const uniqueDocs = snapshots => {
+      const found = new Map();
+      for (const snap of snapshots) for (const doc of snap.docs) found.set(doc.id, doc);
+      return [...found.values()];
+    };
+    const blockedDocs = uniqueDocs([blockedRangeSnap, blockedLegacySnap]);
+    const bookingDocs = uniqueDocs([bookingsRangeSnap, bookingsLegacySnap]);
+    if (blockedDocs.some(doc => overlaps(doc.data()))) {
       throw new HttpsError("already-exists", "Der Zeitraum ist bereits belegt. Bitte wähle andere Tage.");
     }
-    if (bookingsSnap.docs.some(doc => {
+    if (bookingDocs.some(doc => {
       const data = doc.data();
       return data.bookingStatus !== "abgelehnt" && data.status !== "abgelehnt" && overlaps(data);
     })) {
