@@ -25,7 +25,18 @@ Der Branch `firebase-security-fix` enthält den Übergangsentwurf mit:
 6. Für automatische E-Mail-Benachrichtigungen die Firebase Extension **Trigger Email** installieren und mit einem SMTP-Anbieter konfigurieren. Die Erweiterung muss die Collection `mail` überwachen. Die Function legt dort eine Nachricht an das Admin-Postfach `vermietung.candybar@gmail.com` ab.
 7. Für Cloud Functions kann der Blaze-Tarif erforderlich sein. Dabei können nutzungsabhängige Kosten entstehen. Vor einer Aktivierung müssen die Kosten und das Budget geprüft werden.
 
-## Firestore-TTL für Rate-Limits aktivieren\n\nDie Functions schreiben `expiresAt` als Firestore-Timestamp. Damit alte Zähler automatisch gelöscht werden, muss die TTL-Richtlinie einmalig in der Firebase Console eingerichtet werden:\n\n1. Firestore Database öffnen.\n2. Den Bereich **Time-to-live (TTL)** öffnen.\n3. Eine Richtlinie für Collection Group `rateLimits` und Feld `expiresAt` erstellen.\n4. Speichern und warten, bis der Status der Richtlinie aktiv ist. Die Löschung erfolgt anschließend automatisch und nicht sekundengenau.\n\nOhne diese Richtlinie funktionieren die Rate-Limits weiterhin; die alten Zähler werden dann nur nicht automatisch aufgeräumt.\n\n## Deployment über GitHub Actions
+## Firestore-TTL für Rate-Limits aktivieren
+
+Die Functions schreiben `expiresAt` als Firestore-Timestamp. Damit alte Zähler automatisch gelöscht werden, muss die TTL-Richtlinie einmalig in der Firebase Console eingerichtet werden:
+
+1. Firestore Database öffnen.
+2. Den Bereich **Time-to-live (TTL)** öffnen.
+3. Eine Richtlinie für Collection Group `rateLimits` und Feld `expiresAt` erstellen.
+4. Speichern und warten, bis der Status der Richtlinie aktiv ist. Die Löschung erfolgt anschließend automatisch und nicht sekundengenau.
+
+Ohne diese Richtlinie funktionieren die Rate-Limits weiterhin; die alten Zähler werden dann nur nicht automatisch aufgeräumt.
+
+## Deployment über GitHub Actions
 
 Die Datei `.github/workflows/deploy-firebase.yml` ist für GitHub Actions vorbereitet. Sie veröffentlicht:
 - Cloud Functions
@@ -44,14 +55,15 @@ Wichtig: Der Workflow darf erst ausgeführt werden, wenn die Änderungen geprüf
 - Function-Deployment in `europe-west3`
 - Buchung mit freien Tagen
 - Zwei gleichzeitige Buchungen für denselben Zeitraum (nur eine darf durchgehen)
-- Bereits belegte Tage und 14-Tage-Vorlauf\n- Alte Buchungen ohne `dayLocks` sowie alte `blocked`-Einträge müssen serverseitig jede Überschneidung verhindern
+- Bereits belegte Tage und 14-Tage-Vorlauf
+- Alte Buchungen ohne `dayLocks` sowie alte `blocked`-Einträge müssen serverseitig jede Überschneidung verhindern
 - Admin-Dashboard: Statusänderungen und Tages-Sperren
 - E-Mail-Auslösung über „Trigger Email“
 - Bild-Upload, Ersetzen und Löschen über Firebase Storage
 - Bestehende Buchungen: vor dem Umschalten müssen alte Buchungen und Sperren übernommen bzw. geprüft werden
 - Kontaktformular: Rate-Limit (3 Anfragen je IP und Stunde), Honeypot und serverseitige Validierung prüfen
 - Buchungsformular: Rate-Limit (8 Anfragen je IP und 4 je Nutzer pro 24 Stunden) prüfen
-- App Check in Firebase registrieren und nach Einrichtung in beiden Callable Functions erzwingen
+- App Check erst nach Registrierung und erfolgreichem Test in beiden Callable Functions erzwingen
 - Firestore TTL für `rateLimits.expiresAt` in der Firebase Console aktivieren; die Functions setzen das Ablaufdatum automatisch auf zwei Zeitfenster nach dem jeweiligen Versuch
 
 ## Sicherheits- und Veröffentlichungsgrenzen
