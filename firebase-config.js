@@ -8,8 +8,5 @@ export const firebaseConfig = {
   appId: "1:310456556896:web:82edaf6749748bc46d1205"
 };
 
-// Zugangscode fürs Dashboard (erste Hürde)
-export const DASHBOARD_CODE = "1234";
-
 // Diese E-Mail-Adresse hat Admin-Rechte
 export const ADMIN_EMAIL = "vermietung.candybar@gmail.com";

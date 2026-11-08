@@ -1,0 +1,79 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && request.auth.token.email == "vermietung.candybar@gmail.com"
+        && request.auth.token.email_verified == true;
+    }
+
+    function ownsBooking(id) {
+      return signedIn()
+        && getAfter(/databases/$(database)/documents/bookings/$(id)).data.uid == request.auth.uid;
+    }
+
+    function ownsExistingBooking(id) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/bookings/$(id))
+        && get(/databases/$(database)/documents/bookings/$(id)).data.uid == request.auth.uid;
+    }
+
+    function newLockValueIsValid(field) {
+      return !(field in request.resource.data)
+        || ownsBooking(request.resource.data[field]);
+    }
+
+    function changedLockIsValid(field) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([field])
+        || (request.resource.data[field] == null
+          ? (isAdmin() || ownsExistingBooking(resource.data[field]))
+          : ownsBooking(request.resource.data[field]));
+    }
+
+    match /packages/{packageId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /config/{configId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /bookings/{bookingId} {
+      // Öffentliche Buchungen laufen ausschließlich über die Callable Function.
+      allow create: if false;
+      allow read: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    // Öffentliche Kalenderdaten enthalten keine Kontaktdaten.
+    // Schreibzugriffe erfolgen serverseitig über die Callable Function.
+    match /blocked/{bookingId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Nur Admins dürfen Tages-Sperren direkt verändern.
+    match /dayLocks/{dateId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /contacts/{contactId} {
+      // Kontaktanfragen werden ausschließlich über die rate-limit-geschützte Function erstellt.
+      allow create: if false;
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /rateLimits/{limitId} {
+      // Interne Missbrauchsschutz-Zähler sind niemals öffentlich zugänglich.
+      allow read, write: if false;
+    }
+  }
+}
