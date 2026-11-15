@@ -139,372 +139,66 @@
   </div>
 </div>
 
-<script type="module">
-  import { db, auth, storage, uploadFile, ADMIN_EMAIL } from "./firebase-init.js";
-  import { getPackage, PACKAGE_IDS, DEFAULT_PACKAGES } from "./packages-default.js";
-  import { nice, EXTRA_DAY_PRICE } from "./booking-logic.js";
-
-  function escapeHtml(value){
-    return String(value ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#39;");
-  }
-  function safeImageUrl(value){
-    try { const url = new URL(String(value || ""), location.origin); return url.protocol === "https:" ? url.href : ""; }
-    catch { return ""; }
-  }
-  function dateText(b){
-    if(b.firstEventDay && b.lastEventDay && b.lastEventDay !== b.firstEventDay) return `${escapeHtml(nice(b.firstEventDay))} – ${escapeHtml(nice(b.lastEventDay))}<br><span style="font-size:.75rem;color:var(--cream-dim)">${escapeHtml(b.eventDays)} Tage · Abholung ${escapeHtml(nice(b.startDate))} · Rückgabe ${escapeHtml(nice(b.endDate))}</span>`;
-    if(b.firstEventDay) return `${escapeHtml(nice(b.firstEventDay))}<br><span style="font-size:.75rem;color:var(--cream-dim)">Abholung ${escapeHtml(nice(b.startDate))} · Rückgabe ${escapeHtml(nice(b.endDate))}</span>`;
-    return escapeHtml(b.eventDate || "");
-  }
-  import {
-    collection, getDocs, doc, getDoc, setDoc, updateDoc, deleteDoc, runTransaction
-  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-  import { createStore } from "./booking-store.js";
-  const bookingStore = createStore({ collection, getDocs, doc, runTransaction, serverTimestamp: () => null }, db);
-  import {
-    signInWithEmailAndPassword, onAuthStateChanged, signOut
-  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-
-
-  let packagePrices = {};
-
-  // Der frühere Zugangscode lag im öffentlichen JavaScript und war kein Geheimnis.
-  // Der Zugriff wird ausschließlich durch Firebase Authentication und Firestore-Regeln geschützt.
-
-  function checkAdminAuth(){
-    onAuthStateChanged(auth, (user)=>{
-      if(user && user.email === ADMIN_EMAIL && user.emailVerified){
-        document.getElementById("adminLoginGate").style.display = "none";
-        document.getElementById("app").style.display = "block";
-        loadAll();
-      } else {
-        document.getElementById("adminLoginGate").style.display = "flex";
-        document.getElementById("app").style.display = "none";
-      }
-    });
-  }
-
-  checkAdminAuth();
-
-  window.adminSignOut = async function(){
-    try { await signOut(auth); } finally { location.reload(); }
-  };
-
-  window.adminSignIn = async function(){
-    const email = document.getElementById("adminEmail").value;
-    const password = document.getElementById("adminPassword").value;
-    const err = document.getElementById("adminLoginError");
-    err.textContent = "";
-    try{
-      const cred = await signInWithEmailAndPassword(auth, email, password);
-      if(cred.user.email !== ADMIN_EMAIL || !cred.user.emailVerified){
-        await signOut(auth);
-        err.textContent = "Nur das bestätigte Admin-Konto hat Zugriff.";
-        return;
-      }
-    }catch(e){
-      err.textContent = "Anmeldung fehlgeschlagen: " + (e.message || "");
-    }
-  }
-
-  async function loadAll(){
-    await ensurePackages();
-    await loadHome();
-    await loadPackages();
-    await loadBookings();
-    await loadContacts();
-    await loadGallery();
-    await loadLegal();
-  }
-
-  async function ensurePackages(){
-    for(const id of PACKAGE_IDS){
-      const ref_ = doc(db,"packages",id);
-      const snap = await getDoc(ref_);
-      if(!snap.exists()){
-        await setDoc(ref_, {...DEFAULT_PACKAGES[id], stripeLink:""});
-      }
-    }
-  }
-
-  // ---------- Startseite ----------
-  async function loadHome(){
-    const snap = await getDoc(doc(db,"config","home"));
-    const data = snap.exists() ? snap.data() : {};
-    if(data.heroImage) document.getElementById("heroPreview").src = safeImageUrl(data.heroImage);
-    document.getElementById("heroTextInput").value = data.heroText || "";
-  }
-
-  window.handleHeroUpload = async function(event){
-    const file = event.target.files[0];
-    if(!file) return;
-    const url = await uploadFile(file, "home");
-    document.getElementById("heroPreview").src = safeImageUrl(url);
-    const ref_ = doc(db,"config","home");
-    const snap = await getDoc(ref_);
-    const data = snap.exists() ? snap.data() : {};
-    await setDoc(ref_, {...data, heroImage:url});
-    document.getElementById("homeMsg").textContent = "Bild gespeichert ✓";
-    setTimeout(()=>document.getElementById("homeMsg").textContent="",1500);
-  }
-
-  window.saveHomeText = async function(){
-    const ref_ = doc(db,"config","home");
-    const snap = await getDoc(ref_);
-    const data = snap.exists() ? snap.data() : {};
-    await setDoc(ref_, {...data, heroText: document.getElementById("heroTextInput").value});
-    document.getElementById("homeMsg").textContent = "Text gespeichert ✓";
-    setTimeout(()=>document.getElementById("homeMsg").textContent="",1500);
-  }
-
-  // ---------- Bookings ----------
-  async function loadBookings(){
-    const snap = await getDocs(collection(db,"bookings"));
-    const body = document.getElementById("bookingsBody");
-    body.innerHTML = "";
-    let total = 0, confirmed = 0, revenue = 0;
-    const rows = [];
-    snap.forEach(d=>{ rows.push({id:d.id, ...d.data()}); });
-    rows.sort((a,b)=> (a.eventDate||"").localeCompare(b.eventDate||""));
-    rows.forEach(b=>{
-      const bookingStatus = b.bookingStatus || b.status || "neu";
-      const paymentStatus = b.paymentStatus || "offen";
-      const price = b.price || packagePrices[b.package] || 0;
-      const paid = paymentStatus === "bezahlt" ? price : (b.paidAmount || 0);
-      const open = Math.max(price - paid, 0);
-      total++;
-      if(bookingStatus === "bestätigt"){
-        confirmed++;
-        if(paymentStatus === "bezahlt") revenue += price;
-      }
-      body.innerHTML += `
-        <tr>
-          <td>${dateText(b)}</td>
-          <td>${escapeHtml(b.name)}</td>
-          <td>${escapeHtml(b.package)}</td>
-          <td>${escapeHtml(b.email)}<br>${escapeHtml(b.phone)}</td>
-          <td>${b.location ? escapeHtml(b.location)+"<br>" : ""}${escapeHtml(b.message)}</td>
-          <td>
-            <select class="statusSelect" onchange="updateBookingStatus('${b.id}', this.value)">
-              <option value="neu" ${bookingStatus==="neu"?"selected":""}>Neu</option>
-              <option value="bestätigt" ${bookingStatus==="bestätigt"?"selected":""}>Bestätigt</option>
-              <option value="abgelehnt" ${bookingStatus==="abgelehnt"?"selected":""}>Abgelehnt</option>
-            </select>
-          </td>
-          <td>
-            <select class="statusSelect" onchange="updatePaymentStatus('${b.id}', this.value)">
-              <option value="offen" ${paymentStatus==="offen"?"selected":""}>Offen</option>
-              <option value="bezahlt" ${paymentStatus==="bezahlt"?"selected":""}>Bezahlt</option>
-              <option value="fehlgeschlagen" ${paymentStatus==="fehlgeschlagen"?"selected":""}>Fehlgeschlagen</option>
-              <option value="erstattet" ${paymentStatus==="erstattet"?"selected":""}>Erstattet</option>
-            </select>
-          </td>
-          <td style="font-size:.8rem">${price.toFixed(2)} € / ${paid.toFixed(2)} € / ${open.toFixed(2)} €${priceWarning(b, price)}</td>
-        </tr>`;
-    });
-    document.getElementById("statTotal").textContent = total;
-    document.getElementById("statConfirmed").textContent = confirmed;
-    document.getElementById("statRevenue").textContent = revenue.toFixed(2) + " €";
-  }
-
-  // Kontrolle im Dashboard: Paketpreis + (Tage - 1) x 89 € muss zum gespeicherten Preis passen
-  function priceWarning(b, price){
-    if(!b.eventDays || packagePrices[b.package] === undefined) return "";
-    const expected = packagePrices[b.package] + (b.eventDays - 1) * EXTRA_DAY_PRICE;
-    if(Math.abs(expected - price) < 0.005) return "";
-    return `<br><span style="color:#c23b52">⚠ weicht vom aktuellen Paketpreis ab (erwartet ${expected.toFixed(2)} €)</span>`;
-  }
-
-  window.updateBookingStatus = async function(id, bookingStatus){
-    try{
-      await bookingStore.setStatus(id, bookingStatus);
-      await loadBookings();
-    }catch(e){
-      alert(e.message || "Der Buchungsstatus konnte nicht geändert werden.");
-      await loadBookings();
-    }
-  }
-  window.updatePaymentStatus = async function(id, paymentStatus){
-    const updateData = {paymentStatus};
-    if(paymentStatus === "bezahlt"){
-      const snap = await getDoc(doc(db,"bookings",id));
-      updateData.paidAmount = snap.data().price || 0;
-    }
-    await updateDoc(doc(db,"bookings",id), updateData);
-    loadBookings();
-  }
-
-  // ---------- Contacts ----------
-  async function loadContacts(){
-    const snap = await getDocs(collection(db,"contacts"));
-    const body = document.getElementById("contactsBody");
-    body.innerHTML = "";
-    const rows = [];
-    snap.forEach(d=>{ rows.push(d.data()); });
-    rows.sort((a,b)=> (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
-    if(rows.length === 0){
-      body.innerHTML = `<tr><td colspan="6" style="color:var(--cream-dim)">Noch keine Kontaktanfragen.</td></tr>`;
-      return;
-    }
-    rows.forEach(c=>{
-      const date = c.createdAt?.seconds ? new Date(c.createdAt.seconds*1000).toLocaleDateString("de-DE") : "";
-      body.innerHTML += `
-        <tr>
-          <td>${escapeHtml(date)}</td>
-          <td>${escapeHtml(c.name)}</td>
-          <td>${escapeHtml(c.email)}</td>
-          <td>${escapeHtml(c.address)}</td>
-          <td>${escapeHtml(c.subject)}</td>
-          <td>${escapeHtml(c.message)}</td>
-        </tr>`;
-    });
-  }
-
-  // ---------- Packages ----------
-  async function loadPackages(){
-    const list = document.getElementById("packagesList");
-    list.innerHTML = "";
-    packagePrices = {};
-    for(const id of PACKAGE_IDS){
-      const p = await getPackage(id);
-      const numeric = parseFloat((p.price||"").toString().replace(/[^\d.,]/g,"").replace(",",".")) || 0;
-      packagePrices[p.name] = numeric;
-      const images = p.images || [];
-      const includes = (p.includes || []).join("\n");
-      list.innerHTML += `
-        <div class="card" data-id="${escapeHtml(id)}">
-          <div class="row">
-            <input type="text" value="${escapeHtml(p.name)}" placeholder="Name" class="pName">
-            <input type="text" value="${escapeHtml(p.price)}" placeholder="Preis" class="pPrice">
-          </div>
-          <div class="row">
-            <input type="text" value="${escapeHtml(p.description)}" placeholder="Beschreibung" class="pDesc" style="flex:3">
-          </div>
-          <div class="row includesEdit">
-            <textarea class="pIncludes" placeholder="Enthaltene Leistungen (eine pro Zeile)">${escapeHtml(includes)}</textarea>
-          </div>
-          <div class="row">
-            <input type="text" value="${escapeHtml(p.stripeLink)}" placeholder="Stripe Payment Link (URL)" class="pStripe" style="flex:3">
-          </div>
-          <div class="row">
-            <button onclick="savePackage('${id}', this)">Speichern</button>
-            <label class="fileBtn">📷 Bild hinzufügen
-              <input type="file" accept="image/*" onchange="handlePackageUpload(event,'${id}')">
-            </label>
-            <button class="danger" onclick="deletePackage('${id}', ${escapeHtml(JSON.stringify(p.name||id))})">Zurücksetzen</button>
-          </div>
-          <div class="imgList" id="pkgImgs-${id}">
-            ${images.map((url,i)=>`
-              <div><img src="${escapeHtml(safeImageUrl(url))}" alt=""><button onclick="removePackageImage('${escapeHtml(id)}', ${i})">×</button></div>`).join("")}
-          </div>
-        </div>`;
-    }
-  }
-
-  window.savePackage = async function(id, btn){
-    const card = btn.closest(".card");
-    const name = card.querySelector(".pName").value;
-    const price = card.querySelector(".pPrice").value;
-    const description = card.querySelector(".pDesc").value;
-    const includes = card.querySelector(".pIncludes").value.split("\n").map(s=>s.trim()).filter(Boolean);
-    const stripeLink = card.querySelector(".pStripe").value.trim();
-    await updateDoc(doc(db,"packages",id), {name, price, description, includes, stripeLink});
-    document.getElementById("pkgMsg").textContent = "Gespeichert ✓";
-    setTimeout(()=>document.getElementById("pkgMsg").textContent = "", 1500);
-    loadPackages().then(loadBookings);
-  }
-
-  window.deletePackage = async function(id, name){
-    if(!confirm(`Möchtest du "${name}" auf die Startwerte zurücksetzen? Deine Änderungen an diesem Paket gehen verloren.`)) return;
-    await deleteDoc(doc(db,"packages",id));
-    await setDoc(doc(db,"packages",id), {...DEFAULT_PACKAGES[id], stripeLink:""});
-    document.getElementById("pkgMsg").textContent = `"${name}" wurde zurückgesetzt.`;
-    setTimeout(()=>document.getElementById("pkgMsg").textContent = "", 2000);
-    loadPackages().then(loadBookings);
-  }
-
-  window.handlePackageUpload = async function(event, packageId){
-    const file = event.target.files[0];
-    if(!file) return;
-    event.target.disabled = true;
-    try{
-      const url = await uploadFile(file, `packages/${packageId}`);
-      const ref_ = doc(db,"packages",packageId);
-      const snap = await getDoc(ref_);
-      const images = (snap.data().images) || [];
-      images.push(url);
-      await updateDoc(ref_, {images});
-      loadPackages().then(loadBookings);
-    }catch(e){ alert("Upload fehlgeschlagen: " + e.message); }
-    event.target.disabled = false;
-  }
-
-  window.removePackageImage = async function(packageId, index){
-    const ref_ = doc(db,"packages",packageId);
-    const snap = await getDoc(ref_);
-    const images = (snap.data().images) || [];
-    images.splice(index,1);
-    await updateDoc(ref_, {images});
-    loadPackages().then(loadBookings);
-  }
-
-  // ---------- Gallery ----------
-  async function loadGallery(){
-    const ref_ = doc(db,"config","gallery");
-    const snap = await getDoc(ref_);
-    const images = snap.exists() ? (snap.data().images || []) : [];
-    const list = document.getElementById("imgList");
-    list.innerHTML = "";
-    images.forEach((url, i)=>{
-      list.innerHTML += `<div><img src="${escapeHtml(safeImageUrl(url))}" alt=""><button onclick="removeImage(${i})">×</button></div>`;
-    });
-  }
-
-  window.handleGalleryUpload = async function(event){
-    const file = event.target.files[0];
-    if(!file) return;
-    const msg = document.getElementById("galleryUploadMsg");
-    msg.textContent = "Lädt hoch…";
-    try{
-      const url = await uploadFile(file, "gallery");
-      const ref_ = doc(db,"config","gallery");
-      const snap = await getDoc(ref_);
-      const images = snap.exists() ? (snap.data().images || []) : [];
-      images.push(url);
-      await setDoc(ref_, {images});
-      msg.textContent = "Hochgeladen ✓";
-      setTimeout(()=>msg.textContent="",1500);
-      loadGallery();
-    }catch(e){ msg.textContent = "Fehler beim Hochladen"; alert(e.message); }
-  }
-
-  window.removeImage = async function(index){
-    const ref_ = doc(db,"config","gallery");
-    const snap = await getDoc(ref_);
-    const images = snap.exists() ? (snap.data().images || []) : [];
-    images.splice(index,1);
-    await setDoc(ref_, {images});
-    loadGallery();
-  }
-
-  // ---------- Legal ----------
-  async function loadLegal(){
-    const snap = await getDoc(doc(db,"config","legal"));
-    const data = snap.exists() ? snap.data() : {};
-    document.getElementById("legal_impressum").value = data.impressum || "";
-    document.getElementById("legal_agb").value = data.agb || "";
-    document.getElementById("legal_datenschutz").value = data.datenschutz || "";
-  }
-
-  window.saveLegal = async function(field){
-    const ref_ = doc(db,"config","legal");
-    const snap = await getDoc(ref_);
-    const data = snap.exists() ? snap.data() : {};
-    data[field] = document.getElementById("legal_"+field).value;
-    await setDoc(ref_, data);
-    document.getElementById("legalMsg").textContent = "Gespeichert ✓";
-    setTimeout(()=>document.getElementById("legalMsg").textContent="",1500);
-  }
+<script>
+const API="./backend/php/api/admin.php";
+let csrf="";
+const $=id=>document.getElementById(id);
+const esc=v=>String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+const euro=c=>(Number(c||0)/100).toLocaleString("de-DE",{style:"currency",currency:"EUR"});
+async function request(action,data={},method="POST"){
+ const options={method,headers:{Accept:"application/json"}};
+ if(method==="POST"){options.headers["Content-Type"]="application/json";if(csrf&&action!=="login"&&action!=="logout")options.headers["X-CSRF-Token"]=csrf;options.body=JSON.stringify({action,...data});}
+ const response=await fetch(API+(method==="GET"?"?action="+encodeURIComponent(action):""),options);
+ const result=await response.json().catch(()=>({error:"Ungültige Serverantwort."}));
+ if(!response.ok)throw new Error(result.error||"Anfrage fehlgeschlagen.");
+ return result;
+}
+function showApp(on){$("adminLoginGate").style.display=on?"none":"flex";$("app").style.display=on?"block":"none";}
+async function checkSession(){
+ try{const s=await request("me",{},"GET");if(s.authenticated){csrf=s.csrf;showApp(true);await loadAll();}else showApp(false);}
+ catch(e){showApp(false);$("adminLoginError").textContent=e.message;}
+}
+window.adminSignIn=async()=>{
+ $("adminLoginError").textContent="";
+ try{const r=await request("login",{email:$("adminEmail").value,password:$("adminPassword").value});csrf=r.csrf;$("adminPassword").value="";showApp(true);await loadAll();}
+ catch(e){$("adminLoginError").textContent=e.message;}
+};
+window.adminSignOut=async()=>{try{await request("logout");}finally{csrf="";showApp(false);}};
+async function loadAll(){
+ try{const d=await request("dashboard",{},"GET");renderBookings(d.bookings||[]);renderContacts(d.contacts||[]);renderPackages(d.packages||{});$("heroTextInput").value=d.settings?.heroText||"";$("legal_impressum").value=d.settings?.impressum||"";$("legal_agb").value=d.settings?.agb||"";$("legal_datenschutz").value=d.settings?.datenschutz||"";}
+ catch(e){alert(e.message);}
+}
+function renderBookings(rows){
+ let confirmed=0,revenue=0;
+ $("bookingsBody").innerHTML=rows.map(b=>{
+ const price=Number(b.price_cents||0),paid=Number(b.paid_amount_cents||0),status=b.booking_status||"neu",payment=b.payment_status||"offen";
+ if(status==="bestätigt"){confirmed++;if(payment==="bezahlt")revenue+=price;}
+ const date=b.event_start===b.event_end?b.event_start:b.event_start+" – "+b.event_end;
+ return `<tr><td>${esc(date)}<br><small>Abholung ${esc(b.pickup_date)} · Rückgabe ${esc(b.return_date)}</small></td><td>${esc(b.name)}</td><td>${esc(b.package_name)}</td><td>${esc(b.email)}<br>${esc(b.phone)}</td><td>${esc(b.location)}<br>${esc(b.message)}</td><td><select class="statusSelect" data-id="${esc(b.id)}" data-kind="booking"><option value="neu" ${status==="neu"?"selected":""}>Neu</option><option value="bestätigt" ${status==="bestätigt"?"selected":""}>Bestätigt</option><option value="abgelehnt" ${status==="abgelehnt"?"selected":""}>Abgelehnt</option></select></td><td><select class="statusSelect" data-id="${esc(b.id)}" data-kind="payment"><option value="offen" ${payment==="offen"?"selected":""}>Offen</option><option value="bezahlt" ${payment==="bezahlt"?"selected":""}>Bezahlt</option><option value="fehlgeschlagen" ${payment==="fehlgeschlagen"?"selected":""}>Fehlgeschlagen</option><option value="erstattet" ${payment==="erstattet"?"selected":""}>Erstattet</option></select></td><td>${euro(price)} / ${euro(paid)} / ${euro(Math.max(0,price-paid))}</td></tr>`;
+ }).join("")||'<tr><td colspan="8">Noch keine PHP-Buchungen vorhanden.</td></tr>';
+ $("statTotal").textContent=rows.length;$("statConfirmed").textContent=confirmed;$("statRevenue").textContent=euro(revenue);
+ document.querySelectorAll('select[data-kind]').forEach(el=>el.addEventListener("change",async()=>{
+ const row=rows.find(x=>x.id===el.dataset.id);const bookingStatus=el.dataset.kind==="booking"?el.value:row.booking_status;const paymentStatus=el.dataset.kind==="payment"?el.value:row.payment_status;
+ try{await request("booking_update",{id:row.id,bookingStatus,paymentStatus});await loadAll();}catch(e){alert(e.message);await loadAll();}
+ }));
+}
+function renderContacts(rows){
+ $("contactsBody").innerHTML=rows.map(x=>`<tr><td>${esc(x.created_at)}</td><td>${esc(x.name)}</td><td>${esc(x.email)}</td><td>${esc(x.address)}</td><td>${esc(x.subject)}</td><td>${esc(x.message)}</td></tr>`).join("")||'<tr><td colspan="6">Noch keine PHP-Kontaktanfragen.</td></tr>';
+}
+function renderPackages(packages){
+ $("packagesList").innerHTML=Object.entries(packages).map(([id,p])=>`<div class="card" data-package="${esc(id)}"><h3>${esc(p.name)}</h3><div class="row"><input class="pName" value="${esc(p.name)}" placeholder="Paketname"><input class="pPrice" type="number" min="0" step="0.01" value="${(Number(p.priceCents||0)/100).toFixed(2)}" placeholder="Preis in Euro"></div><div class="row"><textarea class="pDesc" placeholder="Beschreibung">${esc(p.description)}</textarea></div><div class="row"><textarea class="pIncludes" placeholder="Leistungen – eine pro Zeile">${esc((p.includes||[]).join("\n"))}</textarea></div><div class="row"><textarea class="pNote" placeholder="Hinweis">${esc(p.note)}</textarea></div><div class="row"><button onclick="savePackage(this)">Paket speichern</button></div></div>`).join("");
+}
+window.savePackage=async btn=>{
+ const card=btn.closest("[data-package]"),id=card.dataset.package;
+ const p={name:card.querySelector(".pName").value,priceCents:Math.round(Number(card.querySelector(".pPrice").value)*100),description:card.querySelector(".pDesc").value,includes:card.querySelector(".pIncludes").value.split("\n").map(x=>x.trim()).filter(Boolean),note:card.querySelector(".pNote").value};
+ try{await request("package_save",{id,package:p});$("pkgMsg").textContent="Paket gespeichert.";await loadAll();}catch(e){alert(e.message);}
+};
+window.saveHomeText=async()=>{try{await request("setting_save",{key:"heroText",value:$("heroTextInput").value});$("homeMsg").textContent="Text gespeichert.";}catch(e){alert(e.message);}};
+window.saveLegal=async field=>{try{await request("setting_save",{key:field,value:$("legal_"+field).value});$("legalMsg").textContent="Gespeichert.";}catch(e){alert(e.message);}};
+document.querySelectorAll('input[type="file"]').forEach(x=>{x.disabled=true;});
+document.querySelectorAll(".fileBtn").forEach(x=>{x.style.display="none";});
+const gallerySection=[...document.querySelectorAll(".dash-section")].find(x=>x.querySelector("#imgList"));if(gallerySection)gallerySection.style.display="none";
+checkSession();
 </script>
 </body>
 </html>
