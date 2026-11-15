@@ -46,7 +46,7 @@ SET @has_booking_customer_fk = (
 SET @booking_customer_fk_sql = IF(
     @has_booking_customer_fk = 0,
     'ALTER TABLE bookings ADD CONSTRAINT fk_booking_customer FOREIGN KEY (customer_id) REFERENCES customer_users(id) ON DELETE SET NULL',
-    'SELECT 1'
+    'DO 0'
 );
 PREPARE booking_customer_fk_stmt FROM @booking_customer_fk_sql;
 EXECUTE booking_customer_fk_stmt;
