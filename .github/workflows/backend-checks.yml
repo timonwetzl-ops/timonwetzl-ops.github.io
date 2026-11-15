@@ -61,6 +61,7 @@ jobs:
           php -l backend/php/api/media-upload.php
           php -l backend/php/create-admin.php
           php -l backend/php/tests/run.php
+          php -l backend/php/tests/mariadb-integration.php
           php backend/php/tests/run.php
       - name: D1 schema and booking-lock tests
         run: python -m unittest discover -s tests -p 'test_*.py' -v
