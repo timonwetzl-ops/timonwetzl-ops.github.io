@@ -3,6 +3,8 @@ declare(strict_types=1);
 require_once dirname(__DIR__).'/lib/bootstrap.php';
 if($_SERVER['REQUEST_METHOD']!=='POST'){header('Allow: POST');json_response(['error'=>'Methode nicht erlaubt.'],405);}
 if(session_status()!==PHP_SESSION_ACTIVE){
+ ini_set('session.use_strict_mode', '1');
+ ini_set('session.use_only_cookies', '1');
  session_name('candybar_admin');
  session_set_cookie_params(['lifetime'=>0,'path'=>'/','secure'=>!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off','httponly'=>true,'samesite'=>'Strict']);
  session_start();
