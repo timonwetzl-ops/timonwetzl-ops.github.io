@@ -40,10 +40,9 @@ These match the current `packages-default.js` defaults as inspected during devel
 - Customer email/password sign-in, registration, verification, password reset, navigation login state and `meine-buchungen.html` now use PHP/MariaDB.
 - Google and Apple sign-in are shown as not yet available; OAuth setup is a separate remaining step.
 - Existing Firebase customer accounts are not imported automatically. Customers will need to create a PHP account with the same verified email; the old Firebase passwords cannot be copied into MariaDB.
-- Existing `meine-buchungen.html` and customer sign-in still use Firebase.
 - Run `schema.sql` on a new MariaDB database, or back up an existing database and apply `migrations/002_customer_accounts.sql` before using customer accounts. Then create an admin from the server CLI with `php create-admin.php admin@example.com` and a strong password. Do not put the password in GitHub.
 - PHP admin sessions require HTTPS in production. Set up the database and HTTPS before testing the login on the hosted site.
-- Configure a real sender mailbox on the website domain and verify PHP mail delivery (SPF/DKIM and provider settings) before enabling registration. The example uses PHP `mail()` and is not a substitute for testing deliverability.
+- Configure a real sender mailbox on the website domain and verify PHP mail delivery (SPF/DKIM and provider settings) before enabling registration. The current code uses PHP `mail()`; SMTP is not implemented yet. Do not assume that a mailbox or outbound delivery is configured just because an address appears in `config.php`.
 - Existing Firebase customer accounts and Firebase bookings are not imported. Existing PHP bookings can be linked to a PHP account after the customer verifies the same email address.
 - Google/Apple OAuth, SMTP integration if PHP mail is unavailable, and end-to-end email testing remain unfinished. Do not accept live bookings until full end-to-end tests and adult review are complete.
 - The basic request limit uses keyed IP hashes; review the threshold and retention policy before launch and add further bot protection if abuse appears.
