@@ -1,6 +1,6 @@
 # PHP + MariaDB backend (Hetzner Webhosting M target)
 
-This is a **development draft**, not connected to the public website yet.
+This is a **development draft**. The booking form (`anfrage.html`) now uses the PHP endpoints for package prices, calendar availability and booking submission. The public website is not deployed from this branch.
 
 ## Hosting fit
 
@@ -27,10 +27,10 @@ These match the current `packages-default.js` defaults as inspected during devel
 
 ## Important unfinished work
 
-- Existing `anfrage.html` still uses Firebase. It has not been switched to these endpoints.
-- Existing `dashboard.html` still uses Firebase and has not been migrated.
+- `dashboard.html` still uses Firebase and does not yet display or manage bookings saved by the PHP backend.
+- The public package pages, homepage content, gallery, legal-page editor and contact form still use Firebase.
 - Existing `meine-buchungen.html` and customer sign-in still use Firebase.
-- Admin login/session handling, CSRF protection, secure password reset, mail notifications, customer accounts and migration of existing bookings are not finished.
+- Admin login/session handling, CSRF protection, secure password reset, mail notifications, customer accounts and migration of existing bookings are not finished. The PHP booking endpoint must not be opened for real customers until the dashboard can securely review and manage its bookings.
 - The basic request limit uses keyed IP hashes; review the threshold and retention policy before launch and add further bot protection if abuse appears.
 - Test the transaction and duplicate-lock behavior against a real MariaDB instance.
 - Configure HTTPS, backups, database credentials and permissions on Hetzner.
