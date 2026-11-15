@@ -41,8 +41,7 @@ function customer_current(): ?array
     $q->execute([':id' => (int)$_SESSION['customer_id']]);
     $user = $q->fetch();
     if (!$user || empty($user['verified_at'])) {
-        $_SESSION = [];
-        session_destroy();
+        customer_session_destroy();
         return null;
     }
     return $user;
