@@ -14,7 +14,7 @@ try{
  foreach($saved as $row){$v=json_decode($row['data_json'],true);if(is_array($v)&&isset($defaults[$row['package_id']]))$defaults[$row['package_id']]=array_merge($defaults[$row['package_id']],$v);}
  $out=[];
  foreach($defaults as $id=>$p){
-  $price=(int)($p['priceCents']??0);$images=is_array($p['images']??null)?array_values(array_filter($p['images'],fn($u)=>is_string($u)&&str_starts_with($u,'https://'))):[];
+  $price=(int)($p['priceCents']??0);$images=is_array($p['images']??null)?array_values(array_filter($p['images'],fn($u)=>is_string($u)&&filter_var($u,FILTER_VALIDATE_URL)&&str_starts_with($u,'https://'))):[];
   $out[]=['id'=>$id,'name'=>clean_text($p['name']??'',80),'priceCents'=>$price,'price'=>number_format($price/100,2,',','.').' €','description'=>clean_text($p['description']??'',2000),'includes'=>array_values(array_filter($p['includes']??[], 'is_string')),'extrasTitle'=>clean_text($p['extrasTitle']??'',120),'extras'=>array_values(array_filter($p['extras']??[], 'is_string')),'note'=>clean_text($p['note']??'',2000),'images'=>$images];
  }
  json_response(['packages'=>$out]);
