@@ -67,7 +67,8 @@ if($action==='package_save'){
  if(!in_array($id,['basic','comfort','rundumsorglos'],true)||!is_array($p))json_response(['error'=>'Ungültiges Paket.'],400);
  $name=clean_text($p['name']??'',80);$price=(int)($p['priceCents']??0);
  if($name===''||$price<0||$price>10000000)json_response(['error'=>'Name oder Preis ungültig.'],400);
- $out=['name'=>$name,'priceCents'=>$price,'description'=>clean_text($p['description']??'',2000),'includes'=>array_slice(array_map(fn($v)=>clean_text($v,300),is_array($p['includes']??null)?$p['includes']:[]),0,40),'note'=>clean_text($p['note']??'',2000),'images'=>[]];
+ $q=$pdo->prepare("SELECT data_json FROM packages WHERE package_id=:i");$q->execute([':i'=>$id]);$old=json_decode((string)($q->fetchColumn()?:'{}'),true);if(!is_array($old))$old=[];
+ $out=array_merge($old,['name'=>$name,'priceCents'=>$price,'description'=>clean_text($p['description']??'',2000),'includes'=>array_slice(array_map(fn($v)=>clean_text($v,300),is_array($p['includes']??null)?$p['includes']:[]),0,40),'note'=>clean_text($p['note']??'',2000)]);
  $q=$pdo->prepare("INSERT INTO packages(package_id,data_json,updated_at) VALUES(:i,:j,UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE data_json=VALUES(data_json),updated_at=UTC_TIMESTAMP()");$q->execute([':i'=>$id,':j'=>json_encode($out,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR)]);json_response(['ok'=>true]);
 }
 if($action==='setting_save'){
