@@ -58,12 +58,12 @@ admin_post();$pdo=db();
 if($action==='booking_update'){
  $id=clean_text($d['id']??'',32);$s=clean_text($d['bookingStatus']??'',20);$p=clean_text($d['paymentStatus']??'',20);
  if(!preg_match('/^[a-f0-9]{32}$/',$id)||!in_array($s,['neu','bestätigt','abgelehnt'],true)||!in_array($p,['offen','bezahlt','fehlgeschlagen','erstattet'],true))json_response(['error'=>'Ungültige Angaben.'],400);
- $q=$pdo->prepare("SELECT price_cents FROM bookings WHERE id=:id");$q->execute([':id'=>$id]);$row=$q->fetch();if(!$row)json_response(['error'=>'Buchung nicht gefunden.'],404);
+ $q=$pdo->prepare("SELECT price_cents,booking_status FROM bookings WHERE id=:id");$q->execute([':id'=>$id]);$row=$q->fetch();if(!$row)json_response(['error'=>'Buchung nicht gefunden.'],404);
  $paid=$p==='bezahlt'?(int)$row['price_cents']:0;
  try {
   $pdo->beginTransaction();
   if($s==='abgelehnt'){$q=$pdo->prepare("DELETE FROM booking_lock_halves WHERE booking_id=:id");$q->execute([':id'=>$id]);}
-  else {
+  elseif($row['booking_status']==='abgelehnt') {
    $q=$pdo->prepare("SELECT event_start,event_end FROM bookings WHERE id=:id");$q->execute([':id'=>$id]);$dates=$q->fetch();
    $slots=date_slots((string)$dates['event_start'],(string)$dates['event_end']);
    $q=$pdo->prepare("INSERT INTO booking_lock_halves(lock_date,half,booking_id) VALUES(:d,:h,:id)");
