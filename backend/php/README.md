@@ -15,6 +15,8 @@ The target is Hetzner Webhosting M. It supports PHP and MariaDB/MySQL-compatible
 - `api/packages.php`: public package names and server-side prices.
 - `api/admin.php`: PHP-session admin login, CSRF-protected booking and package management, and editable text settings.
 - `api/contacts.php`: public contact form endpoint.
+- `api/content.php`: public homepage, gallery and legal-page content from MariaDB.
+- `api/media-upload.php`: admin-only image upload (JPG/PNG/WebP, max. 5 MB) with session and CSRF checks; uploads are stored under `uploads/candybar/`.
 - `create-admin.php`: CLI-only admin account setup; never exposed through HTTP.
 - `api/bookings.php`: transactional booking endpoint with server-side price calculation and a basic hourly request limit.
 
@@ -30,9 +32,9 @@ These match the current `packages-default.js` defaults as inspected during devel
 
 ## Important unfinished work
 
-- `dashboard.html` and `kontakt.html` now use PHP endpoints; the admin dashboard manages PHP bookings, contact requests, package text/prices and legal/homepage text.
-- Customer sign-in and `meine-buchungen.html` still use Firebase.
-- Public package detail pages, homepage content, gallery and image uploads still need migration; dashboard image upload controls are temporarily disabled.
+- `dashboard.html`, `kontakt.html`, `index.html`, `pakete.html`, `paket-detail.html`, `galerie.html`, `impressum.html`, `agb.html` and `datenschutz.html` now read or write their content through PHP endpoints.
+- The admin dashboard can upload a homepage image and gallery images to the PHP host; uploads are restricted to JPG/PNG/WebP and 5 MB each.
+- Customer sign-in, navigation login state and `meine-buchungen.html` still use Firebase.
 - Existing `meine-buchungen.html` and customer sign-in still use Firebase.
 - Run `schema.sql` on the new MariaDB database, then create an admin from the server CLI with `php create-admin.php admin@example.com` and a strong password. Do not put the password in GitHub.
 - PHP admin sessions require HTTPS in production. Set up the database and HTTPS before testing the login on the hosted site.
