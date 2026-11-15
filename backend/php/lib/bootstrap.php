@@ -59,9 +59,12 @@ function clean_text(mixed $value, int $max): string
 {
     if (!is_string($value)) return '';
     $value = trim($value);
-    // mbstring ist auf Shared-Hosting nicht garantiert aktiviert.
-    if (function_exists('mb_substr')) return mb_substr($value, 0, $max, 'UTF-8');
-    return substr($value, 0, $max);
+    // Keep UTF-8 valid even when mbstring is unavailable on shared hosting.
+    if (preg_match('//u', $value) !== 1) return '';
+    if (function_exists('mb_substr')) return mb_substr($value, 0, max(0, $max), 'UTF-8');
+    $characters = preg_split('//u', $value, -1, PREG_SPLIT_NO_EMPTY);
+    if ($characters === false) return '';
+    return implode('', array_slice($characters, 0, max(0, $max)));
 }
 
 function valid_iso_date(mixed $value): bool
