@@ -109,6 +109,14 @@ CREATE TABLE IF NOT EXISTS contacts (
  INDEX idx_contacts_created(created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Public contact form throttling stores keyed IP hashes, never raw addresses.
+CREATE TABLE IF NOT EXISTS contact_attempts (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    ip_hash CHAR(64) NOT NULL,
+    attempted_at DATETIME NOT NULL,
+    INDEX idx_contact_attempts_ip_time (ip_hash, attempted_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS packages (
  package_id VARCHAR(32) PRIMARY KEY, data_json LONGTEXT NOT NULL, updated_at DATETIME NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
