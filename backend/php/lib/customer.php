@@ -83,7 +83,11 @@ function customer_base_url(): string
 
 function customer_rate_limit(PDO $pdo, string $email, string $action): void
 {
-    $hash = hash('sha256', $action . '|' . strtolower($email));
+    $secret = (string)(app_config()['security']['rate_limit_secret'] ?? '');
+    if (strlen($secret) < 32 || $secret === 'CHANGE_TO_A_LONG_RANDOM_SECRET') {
+        json_response(['error' => 'Die Sicherheitskonfiguration ist noch nicht vollständig eingerichtet.'], 503);
+    }
+    $hash = hash_hmac('sha256', $action . '|' . strtolower($email), $secret);
     $pdo->prepare("DELETE FROM customer_auth_attempts WHERE attempted_at < UTC_TIMESTAMP()-INTERVAL 2 DAY")->execute();
     $q = $pdo->prepare("SELECT COUNT(*) FROM customer_auth_attempts WHERE email_hash=:h AND attempted_at>=UTC_TIMESTAMP()-INTERVAL 15 MINUTE");
     $q->execute([':h' => $hash]);
