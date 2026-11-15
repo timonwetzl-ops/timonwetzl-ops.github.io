@@ -53,7 +53,9 @@ These match the current `packages-default.js` defaults as inspected during devel
 - Never upload `config.php`, passwords, private keys or customer data to GitHub.
 - Do not deploy this draft or accept real bookings until the remaining work and tests are complete.
 
-## Automated tests\n\nRun the PHP test suite with:\n\n```sh\nphp backend/php/tests/run.php\n```\n\nThe suite currently contains more than 100 assertions covering package prices, date validation, date shifts, calendar lock slots and invalid inputs. These are unit-level checks, not a substitute for MariaDB integration and concurrency tests.\n\n## Local syntax check
+## Automated tests\n\nRun the PHP test suite with:\n\n```sh\nphp backend/php/tests/run.php\n```\n\nThe suite currently contains more than 100 assertions covering package prices, date validation, date shifts, calendar lock slots and invalid inputs. These are unit-level checks, not a substitute for MariaDB integration and concurrency tests.
+
+GitHub Actions also runs `tests/mariadb-integration.php` against a disposable MariaDB 11.4 service. It checks that the customer migration can be applied twice, the customer foreign key preserves bookings on account deletion, the fresh-install schema creates the required tables, and duplicate booking-lock slots are rejected. This still does not replace a full hosted end-to-end test of email delivery, sessions, uploads and booking workflows.\n\n## Local syntax check
 
 Run PHP lint on each PHP file:
 
