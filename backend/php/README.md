@@ -13,6 +13,9 @@ The target is Hetzner Webhosting M. It supports PHP and MariaDB/MySQL-compatible
 - `lib/bootstrap.php`: shared PDO, JSON and date helpers.
 - `api/blocked.php`: public calendar date ranges without customer data.
 - `api/packages.php`: public package names and server-side prices.
+- `api/admin.php`: PHP-session admin login, CSRF-protected booking and package management, and editable text settings.
+- `api/contacts.php`: public contact form endpoint.
+- `create-admin.php`: CLI-only admin account setup; never exposed through HTTP.
 - `api/bookings.php`: transactional booking endpoint with server-side price calculation and a basic hourly request limit.
 
 ## Current package defaults
@@ -27,10 +30,13 @@ These match the current `packages-default.js` defaults as inspected during devel
 
 ## Important unfinished work
 
-- `dashboard.html` still uses Firebase and does not yet display or manage bookings saved by the PHP backend.
-- The public package pages, homepage content, gallery, legal-page editor and contact form still use Firebase.
+- `dashboard.html` and `kontakt.html` now use PHP endpoints; the admin dashboard manages PHP bookings, contact requests, package text/prices and legal/homepage text.
+- Customer sign-in and `meine-buchungen.html` still use Firebase.
+- Public package detail pages, homepage content, gallery and image uploads still need migration; dashboard image upload controls are temporarily disabled.
 - Existing `meine-buchungen.html` and customer sign-in still use Firebase.
-- Admin login/session handling, CSRF protection, secure password reset, mail notifications, customer accounts and migration of existing bookings are not finished. The PHP booking endpoint must not be opened for real customers until the dashboard can securely review and manage its bookings.
+- Run `schema.sql` on the new MariaDB database, then create an admin from the server CLI with `php create-admin.php admin@example.com` and a strong password. Do not put the password in GitHub.
+- PHP admin sessions require HTTPS in production. Set up the database and HTTPS before testing the login on the hosted site.
+- Secure password reset, mail notifications, customer accounts and migration of existing Firebase bookings are not finished. Do not accept live bookings until full end-to-end tests and adult review are complete.
 - The basic request limit uses keyed IP hashes; review the threshold and retention policy before launch and add further bot protection if abuse appears.
 - Test the transaction and duplicate-lock behavior against a real MariaDB instance.
 - Configure HTTPS, backups, database credentials and permissions on Hetzner.
