@@ -46,11 +46,12 @@ function customer_issue_token(PDO $pdo, int $customerId, string $purpose, int $m
     $pdo->prepare("UPDATE customer_tokens SET used_at=UTC_TIMESTAMP() WHERE customer_id=:id AND purpose=:purpose AND used_at IS NULL")
         ->execute([':id' => $customerId, ':purpose' => $purpose]);
     $raw = bin2hex(random_bytes(32));
-    $q = $pdo->prepare("INSERT INTO customer_tokens(customer_id,purpose,token_hash,expires_at,created_at) VALUES(:id,:purpose,:hash,DATE_ADD(UTC_TIMESTAMP(),INTERVAL :minutes MINUTE),UTC_TIMESTAMP())");
+    $expires = (new DateTimeImmutable('now', new DateTimeZone('UTC')))->modify('+' . $minutes . ' minutes')->format('Y-m-d H:i:s');
+    $q = $pdo->prepare("INSERT INTO customer_tokens(customer_id,purpose,token_hash,expires_at,created_at) VALUES(:id,:purpose,:hash,:expires,UTC_TIMESTAMP())");
     $q->bindValue(':id', $customerId, PDO::PARAM_INT);
     $q->bindValue(':purpose', $purpose);
     $q->bindValue(':hash', hash('sha256', $raw));
-    $q->bindValue(':minutes', $minutes, PDO::PARAM_INT);
+    $q->bindValue(':expires', $expires);
     $q->execute();
     return $raw;
 }
