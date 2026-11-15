@@ -50,10 +50,12 @@ jobs:
       - name: PHP syntax
         run: |
           php -l backend/php/lib/bootstrap.php
+          php -l backend/php/lib/customer.php
           php -l backend/php/api/blocked.php
           php -l backend/php/api/packages.php
           php -l backend/php/api/bookings.php
           php -l backend/php/api/admin.php
+          php -l backend/php/api/customer.php
           php -l backend/php/api/contacts.php
           php -l backend/php/api/content.php
           php -l backend/php/api/media-upload.php
