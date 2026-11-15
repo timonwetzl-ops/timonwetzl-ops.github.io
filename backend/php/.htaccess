@@ -1,7 +1,4 @@
 Options -Indexes
-<Files "config.php">
-  Require all denied
-</Files>
-<FilesMatch "\.(sql|md|example\.php)$">
+<FilesMatch "^(config.*\\.php|.*\\.(sql|md|log|bak|old|dist|env))$">
   Require all denied
 </FilesMatch>
