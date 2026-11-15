@@ -68,15 +68,7 @@
 
 <script type="module">
 import * as B from "./booking-logic.js";
-import { db, auth } from "./firebase-init.js";
-import { getAllPackages } from "./packages-default.js";
-import {
-  collection, getDocs
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js";
-
-const createBookingCall=httpsCallable(getFunctions(undefined,"europe-west3"),"createBooking");
+import { nice } from "./booking-logic.js";
 const params=new URLSearchParams(location.search);
 let packages=[],selection=B.emptySelection();
 let availability=B.createAvailability([],B.addDays(B.fmt(new Date()),B.LEAD_DAYS));
@@ -90,9 +82,11 @@ document.getElementById("site-nav").innerHTML='<div class="stripe"></div><div cl
 document.getElementById("site-footer").innerHTML='<div class="inner"><div class="links"><a href="kontakt.html">Kontakt</a><a href="impressum.html">Impressum</a><a href="agb.html">AGB</a><a href="datenschutz.html">Datenschutz</a><a href="mailto:candybar.vogtland@gmail.com">candybar.vogtland@gmail.com</a></div></div><div class="bottom">© '+new Date().getFullYear()+' Candy Bar Vogtland</div>';
 
 async function loadPackages(){
-  const loaded=await getAllPackages();
-  packages=loaded.map(p=>({...p,priceCents:Math.round(B.parsePrice(p.price)*100)})).filter(p=>p.priceCents>0);
-  if(!packages.length)throw Error("Die Pakete konnten nicht aus Firebase geladen werden.");
+  const response=await fetch("./backend/php/api/packages.php",{headers:{Accept:"application/json"}});
+  const result=await response.json();
+  if(!response.ok)throw Error(result.error||"Die Pakete konnten nicht geladen werden.");
+  packages=(result.packages||[]).map(p=>({...p,priceCents:Number(p.priceCents)})).filter(p=>p.priceCents>0);
+  if(!packages.length)throw Error("Es sind keine Pakete konfiguriert.");
   const select=document.getElementById("f_package");select.innerHTML="";
   for(const p of packages){const option=document.createElement("option");option.value=p.id;option.textContent=p.name;if(params.get("package")===p.id||params.get("package")===p.name)option.selected=true;select.appendChild(option);}
 }
@@ -102,9 +96,10 @@ function showPackage(){
   box.innerHTML='<div class="eyebrow" style="margin-bottom:10px">Dein ausgewähltes Paket</div><div class="selectedPkg"><div><h3 style="margin-bottom:4px">'+esc(p.name)+'</h3><div class="price">'+(p.priceCents/100).toLocaleString("de-DE",{style:"currency",currency:"EUR"})+' <small>für den ersten Tag</small></div><p style="color:var(--cream-dim);font-size:.9rem;margin:4px 0 0">'+esc(p.description||"")+'</p></div></div>';
 }
 async function loadBlocks(){
-  const snap=await getDocs(collection(db,"blocked")),blocks=[];
-  snap.forEach(item=>{const data=item.data();if(data.startDate)blocks.push({S:data.startDate,E:data.endDate||data.startDate});});
-  return blocks;
+  const response=await fetch("./backend/php/api/blocked.php",{headers:{Accept:"application/json"}});
+  const result=await response.json();
+  if(!response.ok)throw Error(result.error||"Der Kalender konnte nicht geladen werden.");
+  return (result.blocked||[]).map(item=>({S:item.startDate,E:item.endDate||item.startDate}));
 }
 function renderCalendar(){
   const cal=document.getElementById("calendar"),first=new Date(year,month,1),offset=(first.getDay()+6)%7,count=new Date(year,month+1,0).getDate();
@@ -140,7 +135,6 @@ document.getElementById("bookingForm").addEventListener("submit",async event=>{
     const fresh=B.createAvailability(await loadBlocks(),firstBookable());
     if(!fresh.validEventRange(selection.first,selection.last)){availability=fresh;selection=B.emptySelection();renderCalendar();throw Error("Der Zeitraum ist leider nicht mehr frei. Bitte wähle einen anderen.");}
     say("Buchungsanfrage wird sicher gespeichert …");
-    if(!auth.currentUser) await signInAnonymously(auth);
     const payload={
       name:document.getElementById("f_name").value.trim(),
       email:document.getElementById("f_email").value.trim(),
@@ -151,16 +145,19 @@ document.getElementById("bookingForm").addEventListener("submit",async event=>{
       eventEnd:selection.last,
       message:document.getElementById("f_message").value.trim()
     };
-    const response=await createBookingCall(payload);
-    const result=response.data;
-    const price=result.priceCents/100;
+    const response=await fetch("./backend/php/api/bookings.php",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","Accept":"application/json"},
+      body:JSON.stringify(payload)
+    });
+    const result=await response.json();
+    if(!response.ok)throw Error(result.error||"Die Buchung konnte nicht gespeichert werden.");
+    const price=Number(result.priceCents)/100;
     say("Danke! Deine Anfrage ist eingegangen. Gesamtmietpreis: "+price.toLocaleString("de-DE",{style:"currency",currency:"EUR"})+". Kaution: "+B.DEPOSIT+" €. Wir melden uns per E-Mail.","var(--mint)");
     document.getElementById("bookingForm").reset();selection=B.emptySelection();renderCalendar();showPackage();
   }catch(error){
     console.error(error);
     let message=error.message||"Ups, das hat nicht geklappt. Bitte versuche es erneut.";
-    if(error.code==="auth/operation-not-allowed")message="Firebase Anonymous-Anmeldung ist noch nicht aktiviert. Bitte aktiviere in Firebase Authentication die Anmeldemethode „Anonym“.";
-    if(error.code==="permission-denied")message="Firebase hat die Buchung abgelehnt. Bitte prüfe die Firestore-Sicherheitsregeln.";
     say(message,"var(--pink)");
   }finally{submit.disabled=false;}
 });
@@ -168,7 +165,7 @@ document.getElementById("bookingForm").addEventListener("submit",async event=>{
   try{
     await loadPackages();showPackage();
     availability=B.createAvailability(await loadBlocks(),firstBookable());renderCalendar();
-  }catch(error){console.error(error);say("Firebase konnte nicht geladen werden: "+(error.message||"Bitte später erneut versuchen."),"var(--pink)");submit.disabled=true;}
+  }catch(error){console.error(error);say("PHP-Backend konnte nicht geladen werden: "+(error.message||"Bitte später erneut versuchen."),"var(--pink)");submit.disabled=true;}
 })();
 </script>
 </body>
