@@ -182,8 +182,7 @@ if ($action === 'logout') {
     customer_session_start();
     $token = (string)($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
     if (!empty($_SESSION['customer_id']) && ($token === '' || !hash_equals((string)($_SESSION['csrf'] ?? ''), $token))) json_response(['error' => 'Sicherheitsprüfung fehlgeschlagen.'], 403);
-    $_SESSION = [];
-    session_destroy();
+    customer_session_destroy();
     json_response(['ok' => true]);
 }
 
@@ -204,8 +203,7 @@ if ($action === 'delete') {
         if ($pdo->inTransaction()) $pdo->rollBack();
         throw $e;
     }
-    $_SESSION = [];
-    session_destroy();
+    customer_session_destroy();
     json_response(['ok' => true]);
 }
 
