@@ -88,6 +88,9 @@ foreach (['bookings', 'booking_lock_halves', 'customer_users', 'customer_tokens'
 $pdo->exec("INSERT INTO bookings
     (id,name,email,phone,location,message,package_id,package_name,event_start,event_end,event_days,pickup_date,return_date,base_price_cents,price_cents,created_at)
     VALUES ('" . str_repeat('b', 32) . "','Test','test@example.invalid','','','', 'basic','Basic','2030-01-10','2030-01-10',1,'2030-01-09','2030-01-11',8900,8900,UTC_TIMESTAMP())");
+$pdo->prepare("INSERT INTO bookings
+    (id,name,email,phone,location,message,package_id,package_name,event_start,event_end,event_days,pickup_date,return_date,base_price_cents,price_cents,created_at)
+    VALUES ('" . str_repeat('c', 32) . "','Test 2','test2@example.invalid','','','', 'basic','Basic','2030-01-12','2030-01-12',1,'2030-01-11','2030-01-13',8900,8900,UTC_TIMESTAMP())");
 $pdo->prepare("INSERT INTO booking_lock_halves(lock_date,half,booking_id) VALUES('2030-01-09','pm',:id)")
     ->execute([':id' => str_repeat('b', 32)]);
 $duplicateRejected = false;
