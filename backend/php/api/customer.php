@@ -116,7 +116,8 @@ if ($action === 'login') {
     $user = $q->fetch();
     if (!$user || !password_verify($password, (string)$user['password_hash'])) json_response(['error' => 'E-Mail oder Passwort stimmt nicht.'], 401);
     if (empty($user['verified_at'])) json_response(['error' => 'Bitte bestätige zuerst deine E-Mail. Du kannst dir den Bestätigungslink erneut senden lassen.'], 403);
-    $loginHash = hash('sha256', 'login|' . strtolower($email));
+    $secret = (string)(app_config()['security']['rate_limit_secret'] ?? '');
+    $loginHash = hash_hmac('sha256', 'login|' . strtolower($email), $secret);
     $pdo->prepare('DELETE FROM customer_auth_attempts WHERE email_hash=:h')->execute([':h' => $loginHash]);
     customer_session_start();
     session_regenerate_id(true);
