@@ -14,7 +14,9 @@ if(!isset($_FILES['image'])||!is_uploaded_file($_FILES['image']['tmp_name']))jso
 $file=$_FILES['image'];
 if(($file['error']??UPLOAD_ERR_NO_FILE)!==UPLOAD_ERR_OK)json_response(['error'=>'Upload fehlgeschlagen.'],400);
 if((int)$file['size']>5*1024*1024)json_response(['error'=>'Das Bild darf maximal 5 MB groß sein.'],413);
-$info=@getimagesize($file['tmp_name']);$mime=(string)($info['mime']??'');
+$info=@getimagesize($file['tmp_name']);
+if(!is_array($info))json_response(['error'=>'Die Bilddatei ist ungültig.'],415);
+$mime=(string)($info['mime']??'');
 $extensions=['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'];
 if(!isset($extensions[$mime])||!class_exists('finfo'))json_response(['error'=>'Nur JPG-, PNG- und WebP-Bilder sind erlaubt.'],415);
 $finfo=new finfo(FILEINFO_MIME_TYPE);
