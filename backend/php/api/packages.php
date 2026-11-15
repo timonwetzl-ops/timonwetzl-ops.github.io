@@ -10,6 +10,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 
 try {
     $packages = app_config()['booking']['packages'] ?? [];
+    $saved = db()->query("SELECT package_id, data_json FROM packages")->fetchAll();
+    foreach ($saved as $row) {
+        $data = json_decode($row['data_json'], true);
+        if (is_array($data) && isset($packages[$row['package_id']])) {
+            $packages[$row['package_id']]['name'] = (string)($data['name'] ?? $packages[$row['package_id']]['name']);
+            $packages[$row['package_id']]['price_cents'] = (int)($data['priceCents'] ?? $packages[$row['package_id']]['price_cents']);
+        }
+    }
     $public = [];
     foreach ($packages as $id => $package) {
         if (!is_array($package) || !isset($package['name'], $package['price_cents'])) continue;
