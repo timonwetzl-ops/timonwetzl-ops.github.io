@@ -71,16 +71,15 @@
   </div>
 
   <div class="dash-section">
-    <h2>Startseite</h2><p class="center-note">Der Text wird in MariaDB gespeichert. Die öffentliche Startseite ist noch nicht auf PHP umgestellt.</p>
+    <h2>Startseite</h2><p class="center-note">Startseitentext und Hauptbild-Adresse werden über PHP in MariaDB gespeichert.</p>
     <div class="card">
       <label class="fileBtn">📷 Hauptbild ändern
         <input type="file" accept="image/*" onchange="handleHeroUpload(event)">
       </label>
       <div id="heroPreviewWrap" style="margin-top:14px;"><img id="heroPreview" style="width:200px;border-radius:12px;"></div>
-      <div class="row">
-        <textarea id="heroTextInput" placeholder="Startseitentext"></textarea>
-      </div>
-      <div class="row"><button onclick="saveHomeText()">Text speichern</button></div>
+      <div class="row"><input id="heroImageInput" type="url" placeholder="HTTPS-Bildadresse für das Hauptbild"></div>
+      <div class="row"><textarea id="heroTextInput" placeholder="Startseitentext"></textarea></div>
+      <div class="row"><button onclick="saveHomeText()">Startseite speichern</button></div>
       <div class="msg" id="homeMsg"></div>
     </div>
   </div>
@@ -102,24 +101,17 @@
   </div>
 
   <div class="dash-section">
-    <h2>Pakete & Preise</h2><p class="center-note">Paketnamen und Preise werden bereits vom PHP-Buchungsformular verwendet. Beschreibungen der öffentlichen Paket-Seiten werden noch migriert.</p>
+    <h2>Pakete & Preise</h2><p class="center-note">Paketnamen, Preise und Beschreibungen werden über PHP verwaltet.</p>
     <div id="packagesList"></div>
     <div class="msg" id="pkgMsg"></div>
   </div>
 
   <div class="dash-section">
-    <h2>Galerie-Bilder</h2>
-    <div class="card">
-      <label class="fileBtn">📷 Bild hochladen
-        <input type="file" accept="image/*" onchange="handleGalleryUpload(event)">
-      </label>
-      <span class="msg" id="galleryUploadMsg"></span>
-    </div>
-    <div class="imgList" id="imgList"></div>
+    <h2>Galerie-Bilder</h2><div class="card"><p>Eine Bildadresse pro Zeile. Es werden HTTPS-Adressen akzeptiert. Bestehende Firebase-Bildadressen können vorerst weiterverwendet werden.</p><div class="row"><textarea id="galleryUrlsInput" placeholder="https://…"></textarea></div><div class="row"><button onclick="saveGallery()">Galerie speichern</button></div><div class="msg" id="galleryMsg"></div></div><div class="imgList" id="imgList"></div>
   </div>
 
   <div class="dash-section">
-    <h2>Rechtliche Seiten</h2><p class="center-note">Diese Texte werden vorerst in MariaDB gespeichert; die öffentlichen Rechtsseiten lesen noch Firebase.</p>
+    <h2>Rechtliche Seiten</h2><p class="center-note">Impressum, AGB und Datenschutz werden über PHP geladen und in MariaDB gespeichert. Bitte Texte vor Veröffentlichung mit einem Erwachsenen prüfen.</p>
     <div class="card">
       <strong>Impressum</strong>
       <div class="row"><textarea id="legal_impressum"></textarea></div>
@@ -165,7 +157,7 @@ window.adminSignIn=async()=>{
 };
 window.adminSignOut=async()=>{try{await request("logout");}finally{csrf="";showApp(false);}};
 async function loadAll(){
- try{const d=await request("dashboard",{},"GET");renderBookings(d.bookings||[]);renderContacts(d.contacts||[]);renderPackages(d.packages||{});$("heroTextInput").value=d.settings?.heroText||"";$("legal_impressum").value=d.settings?.impressum||"";$("legal_agb").value=d.settings?.agb||"";$("legal_datenschutz").value=d.settings?.datenschutz||"";}
+ try{const d=await request("dashboard",{},"GET");renderBookings(d.bookings||[]);renderContacts(d.contacts||[]);renderPackages(d.packages||{});$("heroTextInput").value=d.settings?.heroText||"";$("heroImageInput").value=d.settings?.heroImage||"";$("galleryUrlsInput").value=Array.isArray(d.settings?.galleryImages)?d.settings.galleryImages.join("\n"):"";$("legal_impressum").value=d.settings?.impressum||"";$("legal_agb").value=d.settings?.agb||"";$("legal_datenschutz").value=d.settings?.datenschutz||"";}
  catch(e){alert(e.message);}
 }
 function renderBookings(rows){
@@ -193,11 +185,12 @@ window.savePackage=async btn=>{
  const p={name:card.querySelector(".pName").value,priceCents:Math.round(Number(card.querySelector(".pPrice").value)*100),description:card.querySelector(".pDesc").value,includes:card.querySelector(".pIncludes").value.split("\n").map(x=>x.trim()).filter(Boolean),note:card.querySelector(".pNote").value};
  try{await request("package_save",{id,package:p});$("pkgMsg").textContent="Paket gespeichert.";await loadAll();}catch(e){alert(e.message);}
 };
-window.saveHomeText=async()=>{try{await request("setting_save",{key:"heroText",value:$("heroTextInput").value});$("homeMsg").textContent="Text gespeichert.";}catch(e){alert(e.message);}};
+window.saveHomeText=async()=>{try{await request("setting_save",{key:"heroText",value:$("heroTextInput").value});await request("setting_save",{key:"heroImage",value:$("heroImageInput").value.trim()});$("homeMsg").textContent="Startseite gespeichert.";}catch(e){alert(e.message);}};
+window.saveGallery=async()=>{try{const urls=$("galleryUrlsInput").value.split("\n").map(x=>x.trim()).filter(Boolean);await request("setting_save",{key:"galleryImages",value:JSON.stringify(urls)});$("galleryMsg").textContent="Galerie gespeichert.";}catch(e){alert(e.message);}};
 window.saveLegal=async field=>{try{await request("setting_save",{key:field,value:$("legal_"+field).value});$("legalMsg").textContent="Gespeichert.";}catch(e){alert(e.message);}};
 document.querySelectorAll('input[type="file"]').forEach(x=>{x.disabled=true;});
 document.querySelectorAll(".fileBtn").forEach(x=>{x.style.display="none";});
-const gallerySection=[...document.querySelectorAll(".dash-section")].find(x=>x.querySelector("#imgList"));if(gallerySection)gallerySection.style.display="none";
+
 checkSession();
 </script>
 </body>
