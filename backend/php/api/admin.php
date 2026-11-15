@@ -58,7 +58,16 @@ if($action==='login'){
  $pdo->prepare("DELETE FROM login_attempts WHERE email_hash=:h")->execute([':h'=>$hash]);
  json_response(['ok'=>true,'csrf'=>$_SESSION['csrf']]);
 }
-if($action==='logout'){admin_session();$_SESSION=[];session_destroy();json_response(['ok'=>true]);}
+if($action==='logout'){
+ admin_session();
+ if(!empty($_SESSION['admin_id'])){
+  $token=(string)($_SERVER['HTTP_X_CSRF_TOKEN']??'');
+  if($token===''||!hash_equals((string)($_SESSION['csrf']??''),$token))json_response(['error'=>'Sicherheitsprüfung fehlgeschlagen.'],403);
+ }
+ $_SESSION=[];session_destroy();
+ if(ini_get('session.use_cookies')){ $p=session_get_cookie_params();setcookie(session_name(),'', ['expires'=>time()-42000,'path'=>$p['path']?:'/','domain'=>$p['domain'],'secure'=>$p['secure'],'httponly'=>$p['httponly'],'samesite'=>$p['samesite']??'Strict']); }
+ json_response(['ok'=>true]);
+}
 admin_post();$pdo=db();
 if($action==='booking_update'){
  $id=clean_text($d['id']??'',32);$s=clean_text($d['bookingStatus']??'',20);$p=clean_text($d['paymentStatus']??'',20);
