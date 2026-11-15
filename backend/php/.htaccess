@@ -1,4 +1,4 @@
 Options -Indexes
-<FilesMatch "^(config.*\\.php|.*\\.(sql|md|log|bak|old|dist|env))$">
+<FilesMatch "^(config.*|.*\\.(sql|md|log|bak|old|dist|env))$">
   Require all denied
 </FilesMatch>
