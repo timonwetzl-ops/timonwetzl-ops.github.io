@@ -63,13 +63,22 @@ $pdo = db();
 if ($action === 'verify_email') {
     $token = is_string($d['token'] ?? null) ? $d['token'] : '';
     if (!preg_match('/^[a-f0-9]{64}$/', $token)) json_response(['error' => 'Dieser Link ist ungültig oder abgelaufen.'], 400);
-    $q = $pdo->prepare("SELECT id,customer_id FROM customer_tokens WHERE token_hash=:h AND purpose='verify' AND used_at IS NULL AND expires_at>UTC_TIMESTAMP() LIMIT 1");
-    $q->execute([':h' => hash('sha256', $token)]);
-    $row = $q->fetch();
-    if (!$row) json_response(['error' => 'Dieser Link ist ungültig oder abgelaufen.'], 400);
     $pdo->beginTransaction();
     try {
-        $pdo->prepare('UPDATE customer_tokens SET used_at=UTC_TIMESTAMP() WHERE id=:id')->execute([':id' => $row['id']]);
+        // Lock the token row so simultaneous requests cannot consume it twice.
+        $q = $pdo->prepare("SELECT id,customer_id FROM customer_tokens WHERE token_hash=:h AND purpose='verify' AND used_at IS NULL AND expires_at>UTC_TIMESTAMP() LIMIT 1 FOR UPDATE");
+        $q->execute([':h' => hash('sha256', $token)]);
+        $row = $q->fetch();
+        if (!$row) {
+            $pdo->rollBack();
+            json_response(['error' => 'Dieser Link ist ungültig oder abgelaufen.'], 400);
+        }
+        $consume = $pdo->prepare("UPDATE customer_tokens SET used_at=UTC_TIMESTAMP() WHERE id=:id AND used_at IS NULL AND expires_at>UTC_TIMESTAMP()");
+        $consume->execute([':id' => $row['id']]);
+        if ($consume->rowCount() !== 1) {
+            $pdo->rollBack();
+            json_response(['error' => 'Dieser Link ist ungültig oder abgelaufen.'], 400);
+        }
         $pdo->prepare('UPDATE customer_users SET verified_at=COALESCE(verified_at,UTC_TIMESTAMP()),updated_at=UTC_TIMESTAMP() WHERE id=:id')
             ->execute([':id' => $row['customer_id']]);
         $pdo->commit();
@@ -145,12 +154,17 @@ if ($action === 'reset_password') {
     if (!preg_match('/^[a-f0-9]{64}$/', $token) || strlen($password) < 12 || strlen($password) > 1024) {
         json_response(['error' => 'Der Link ist ungültig oder das neue Passwort ist zu kurz. Mindestens 12 Zeichen.'], 400);
     }
-    $q = $pdo->prepare("SELECT id,customer_id FROM customer_tokens WHERE token_hash=:h AND purpose='reset' AND used_at IS NULL AND expires_at>UTC_TIMESTAMP() LIMIT 1");
-    $q->execute([':h' => hash('sha256', $token)]);
-    $row = $q->fetch();
-    if (!$row) json_response(['error' => 'Dieser Link ist ungültig oder abgelaufen.'], 400);
     $pdo->beginTransaction();
     try {
+        // Lock the customer row as well: only one outstanding reset may win,
+        // even if multiple reset links were issued close together.
+        $q = $pdo->prepare("SELECT t.id,t.customer_id FROM customer_tokens t INNER JOIN customer_users u ON u.id=t.customer_id WHERE t.token_hash=:h AND t.purpose='reset' AND t.used_at IS NULL AND t.expires_at>UTC_TIMESTAMP() LIMIT 1 FOR UPDATE");
+        $q->execute([':h' => hash('sha256', $token)]);
+        $row = $q->fetch();
+        if (!$row) {
+            $pdo->rollBack();
+            json_response(['error' => 'Dieser Link ist ungültig oder abgelaufen.'], 400);
+        }
         $pdo->prepare('UPDATE customer_users SET password_hash=:hash,updated_at=UTC_TIMESTAMP() WHERE id=:id')
             ->execute([':hash' => password_hash($password, PASSWORD_DEFAULT), ':id' => $row['customer_id']]);
         $pdo->prepare("UPDATE customer_tokens SET used_at=UTC_TIMESTAMP() WHERE customer_id=:id AND purpose='reset' AND used_at IS NULL")
