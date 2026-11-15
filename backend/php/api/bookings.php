@@ -28,6 +28,14 @@ $eventEnd = $data['eventEnd'] ?? null;
 $config = app_config();
 $bookingConfig = $config['booking'];
 $packages = $bookingConfig['packages'];
+$savedPackages = db()->query("SELECT package_id, data_json FROM packages")->fetchAll();
+foreach ($savedPackages as $saved) {
+    $savedData = json_decode($saved['data_json'], true);
+    if (is_array($savedData) && isset($packages[$saved['package_id']])) {
+        $packages[$saved['package_id']]['name'] = (string)($savedData['name'] ?? $packages[$saved['package_id']]['name']);
+        $packages[$saved['package_id']]['price_cents'] = (int)($savedData['priceCents'] ?? $packages[$saved['package_id']]['price_cents']);
+    }
+}
 
 if (
     $name === '' ||
