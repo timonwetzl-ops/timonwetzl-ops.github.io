@@ -64,3 +64,20 @@ CREATE TABLE IF NOT EXISTS booking_attempts (
     attempted_at DATETIME NOT NULL,
     INDEX idx_booking_attempts_ip_time (ip_hash, attempted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+CREATE TABLE IF NOT EXISTS contacts (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+ name VARCHAR(120) NOT NULL, email VARCHAR(254) NOT NULL,
+ address VARCHAR(240) NOT NULL DEFAULT '', subject VARCHAR(180) NOT NULL DEFAULT '',
+ message TEXT NOT NULL, created_at DATETIME NOT NULL,
+ INDEX idx_contacts_created(created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS packages (
+ package_id VARCHAR(32) PRIMARY KEY, data_json LONGTEXT NOT NULL, updated_at DATETIME NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS site_settings (
+ setting_key VARCHAR(40) PRIMARY KEY, setting_value MEDIUMTEXT NOT NULL, updated_at DATETIME NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
