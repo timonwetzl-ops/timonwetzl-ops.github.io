@@ -28,24 +28,17 @@
 <footer class="site-footer" id="site-footer"></footer>
 
 <script type="module">
-  import { renderNav, renderFooter } from "./nav.js";
-  import { db } from "./firebase-init.js";
-  import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-  renderNav("galerie.html");
-  renderFooter();
-
-  async function loadGallery(){
-    const snap = await getDoc(doc(db,"config","gallery"));
-    const grid = document.getElementById("galleryGrid");
-    const images = snap.exists() ? (snap.data().images || []) : [];
-    if(images.length === 0){
-      grid.innerHTML = "<p class='center-note'>Noch keine Bilder hochgeladen.</p>";
-      return;
-    }
-    grid.innerHTML = images.map(url => `<img src="${url}" alt="Candybar Foto" loading="lazy">`).join("");
-  }
-  loadGallery();
+import { renderNav, renderFooter } from "./nav.js";
+renderNav("galerie.html");renderFooter();
+(async()=>{
+ const grid=document.getElementById("galleryGrid");
+ try{
+  const r=await fetch("./backend/php/api/content.php",{headers:{Accept:"application/json"}});const d=await r.json();if(!r.ok)throw Error(d.error||"Laden fehlgeschlagen");
+  const images=d.settings?.galleryImages||[];
+  if(!images.length){grid.innerHTML="<p class='center-note'>Noch keine Bilder hinterlegt.</p>";return;}
+  grid.innerHTML=images.map((url,i)=>{const img=document.createElement("img");return `<img src="${String(url).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;")}" alt="Candybar Foto ${i+1}" loading="lazy" decoding="async">`;}).join("");
+ }catch(e){grid.innerHTML="<p class='center-note'>Die Galerie konnte gerade nicht geladen werden.</p>";console.error(e);}
+})();
 </script>
 </body>
 </html>
