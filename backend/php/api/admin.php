@@ -4,6 +4,8 @@ require_once dirname(__DIR__) . '/lib/bootstrap.php';
 
 function admin_session(): void {
  if(session_status()===PHP_SESSION_ACTIVE)return;
+ ini_set('session.use_strict_mode', '1');
+ ini_set('session.use_only_cookies', '1');
  session_name('candybar_admin');
  session_set_cookie_params(['lifetime'=>0,'path'=>'/','secure'=>!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off','httponly'=>true,'samesite'=>'Strict']);
  session_start();
@@ -43,7 +45,10 @@ $d=request_json();$action=(string)($d['action']??'');
 if($action==='login'){
  admin_session();$email=strtolower(clean_text($d['email']??'',254));$pw=is_string($d['password']??null)?$d['password']:'';
  if(!filter_var($email,FILTER_VALIDATE_EMAIL)||$pw==='')json_response(['error'=>'E-Mail oder Passwort stimmt nicht.'],400);
- $pdo=db();$hash=hash('sha256',$email);
+ $config=app_config();$secret=(string)($config['security']['rate_limit_secret']??'');
+ if(strlen($secret)<32||$secret==='CHANGE_TO_A_LONG_RANDOM_SECRET')json_response(['error'=>'Die Sicherheitskonfiguration ist noch nicht vollständig eingerichtet.'],503);
+ $pdo=db();$hash=hash_hmac('sha256',$email,$secret);
+ $pdo->exec("DELETE FROM login_attempts WHERE attempted_at<UTC_TIMESTAMP()-INTERVAL 2 DAY");
  $q=$pdo->prepare("SELECT COUNT(*) FROM login_attempts WHERE email_hash=:h AND attempted_at>=UTC_TIMESTAMP()-INTERVAL 15 MINUTE");$q->execute([':h'=>$hash]);
  if((int)$q->fetchColumn()>=8)json_response(['error'=>'Zu viele Versuche. Bitte warte 15 Minuten.'],429);
  $q=$pdo->prepare("SELECT id,email,password_hash FROM admin_users WHERE email=:e AND active=1 LIMIT 1");$q->execute([':e'=>$email]);$u=$q->fetch();
