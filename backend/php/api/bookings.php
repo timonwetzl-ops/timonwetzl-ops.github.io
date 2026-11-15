@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/lib/bootstrap.php';
+require_once dirname(__DIR__) . '/lib/customer.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Allow: POST');
@@ -72,6 +73,8 @@ $deposit = (int)$bookingConfig['deposit_cents'];
 $pickupDate = shift_date($eventStart, -1);
 $returnDate = shift_date($eventEnd, 1);
 $id = bin2hex(random_bytes(16));
+$customer = customer_current();
+$customerId = ($customer && strtolower((string)$customer['email']) === strtolower($email)) ? (int)$customer['id'] : null;
 
 try {
     // Privacy-conscious basic rate limit: only a keyed hash of the IP is stored.
@@ -98,12 +101,12 @@ try {
 
     $insertBooking = $pdo->prepare(
         "INSERT INTO bookings
-         (id, name, email, phone, location, message, package_id, package_name,
+         (id, name, email, phone, location, message, customer_id, package_id, package_name,
           event_start, event_end, event_days, pickup_date, return_date,
           base_price_cents, price_cents, deposit_cents, booking_status,
           payment_status, paid_amount_cents, created_at)
          VALUES
-         (:id, :name, :email, :phone, :location, :message, :package_id, :package_name,
+         (:id, :name, :email, :phone, :location, :message, :customer_id, :package_id, :package_name,
           :event_start, :event_end, :event_days, :pickup_date, :return_date,
           :base_price, :price, :deposit, 'neu', 'offen', 0, UTC_TIMESTAMP())"
     );
@@ -114,6 +117,7 @@ try {
         ':phone' => $phone,
         ':location' => $location,
         ':message' => $message,
+        ':customer_id' => $customerId,
         ':package_id' => $packageId,
         ':package_name' => $package['name'],
         ':event_start' => $eventStart,
