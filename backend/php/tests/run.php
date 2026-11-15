@@ -62,6 +62,8 @@ check(clean_text(123, 20) === '', 'Nicht-Text wird abgewiesen');
 check(clean_text('abcdef', 3) === 'abc', 'Maximallänge wird eingehalten');
 check(clean_text('', 10) === '', 'Leerer Text bleibt leer');
 check(clean_text('  Candy Bar  ', 9) === 'Candy Bar', 'Textlänge wird begrenzt');
+check(clean_text('äöüß', 2) === 'äö', 'UTF-8-Zeichen werden vollständig begrenzt');
+check(clean_text('🙂x', 1) === '🙂', 'Mehrbyte-Emoji werden vollständig begrenzt');
 foreach ([0, -1, 15, 100] as $days) {
     $thrown = false;
     try { booking_price_cents($config, 'basic', $days); }
