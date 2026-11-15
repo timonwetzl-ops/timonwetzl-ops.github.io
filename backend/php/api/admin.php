@@ -88,7 +88,7 @@ if($action==='package_save'){
 }
 if($action==='setting_save'){
  $key=clean_text($d['key']??'',40);$value=clean_text($d['value']??'',12000);
- if(!in_array($key,['heroText','impressum','agb','datenschutz'],true))json_response(['error'=>'Ungültige Einstellung.'],400);
+ if(!in_array($key,['heroText','heroImage','galleryImages','impressum','agb','datenschutz'],true))json_response(['error'=>'Ungültige Einstellung.'],400);
  $q=$pdo->prepare("INSERT INTO site_settings(setting_key,setting_value,updated_at) VALUES(:k,:v,UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value),updated_at=UTC_TIMESTAMP()");$q->execute([':k'=>$key,':v'=>$value]);json_response(['ok'=>true]);
 }
 json_response(['error'=>'Unbekannte Aktion.'],404);
