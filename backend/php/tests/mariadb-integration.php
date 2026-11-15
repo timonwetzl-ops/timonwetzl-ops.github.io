@@ -14,7 +14,7 @@ $pdo = new PDO(
     "mysql:host={$host};port={$port};charset=utf8mb4",
     $user,
     $password,
-    [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_EMULATE_PREPARES => false]
+    [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_EMULATE_PREPARES => false, PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true]
 );
 
 function run_sql_file(PDO $pdo, string $path): void
@@ -24,7 +24,13 @@ function run_sql_file(PDO $pdo, string $path): void
     // The repository SQL files contain ordinary statements, not stored routines.
     foreach (preg_split('/;\\s*(?:\\r?\\n|$)/', $sql) ?: [] as $statement) {
         $statement = trim($statement);
-        if ($statement !== '') $pdo->exec($statement);
+        if ($statement !== '') {
+            try {
+                $pdo->exec($statement);
+            } catch (PDOException $error) {
+                throw new RuntimeException('SQL-Integrationstest fehlgeschlagen bei: ' . substr($statement, 0, 180), 0, $error);
+            }
+        }
     }
 }
 
