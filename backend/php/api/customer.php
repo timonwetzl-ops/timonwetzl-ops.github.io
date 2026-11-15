@@ -34,20 +34,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     if ($action === 'verify' || $action === 'reset') {
         $token = (string)($_GET['token'] ?? '');
         if (!preg_match('/^[a-f0-9]{64}$/', $token)) json_response(['error' => 'Dieser Link ist ungültig oder abgelaufen.'], 400);
-        $pdo = db();
         $purpose = $action === 'verify' ? 'verify' : 'reset';
-        $q = $pdo->prepare("SELECT id,customer_id FROM customer_tokens WHERE token_hash=:h AND purpose=:p AND used_at IS NULL AND expires_at>UTC_TIMESTAMP() LIMIT 1");
-        $q->execute([':h' => hash('sha256', $token), ':p' => $purpose]);
-        $row = $q->fetch();
-        if (!$row) json_response(['error' => 'Dieser Link ist ungültig oder abgelaufen.'], 400);
-        if ($purpose === 'reset') {
-            header('Location: ' . customer_base_url() . '/anmelden.html?reset=1&token=' . rawurlencode($token), true, 303);
-            exit;
-        }
-        $pdo->prepare('UPDATE customer_tokens SET used_at=UTC_TIMESTAMP() WHERE id=:id')->execute([':id' => $row['id']]);
-        $pdo->prepare('UPDATE customer_users SET verified_at=COALESCE(verified_at,UTC_TIMESTAMP()),updated_at=UTC_TIMESTAMP() WHERE id=:id')
-            ->execute([':id' => $row['customer_id']]);
-        header('Location: ' . customer_base_url() . '/anmelden.html?verified=1', true, 303);
+        // The email link only opens the page. The user confirms there, so link scanners
+        // cannot consume a one-time token just by previewing the email.
+        header('Location: ' . customer_base_url() . '/anmelden.html?' . ($purpose === 'verify' ? 'verify=1' : 'reset=1') . '&token=' . rawurlencode($token), true, 303);
         exit;
     }
     if ($action === 'bookings') {
@@ -69,6 +59,26 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $d = request_json();
 $action = (string)($d['action'] ?? '');
 $pdo = db();
+
+if ($action === 'verify_email') {
+    $token = is_string($d['token'] ?? null) ? $d['token'] : '';
+    if (!preg_match('/^[a-f0-9]{64}$/', $token)) json_response(['error' => 'Dieser Link ist ungültig oder abgelaufen.'], 400);
+    $q = $pdo->prepare("SELECT id,customer_id FROM customer_tokens WHERE token_hash=:h AND purpose='verify' AND used_at IS NULL AND expires_at>UTC_TIMESTAMP() LIMIT 1");
+    $q->execute([':h' => hash('sha256', $token)]);
+    $row = $q->fetch();
+    if (!$row) json_response(['error' => 'Dieser Link ist ungültig oder abgelaufen.'], 400);
+    $pdo->beginTransaction();
+    try {
+        $pdo->prepare('UPDATE customer_tokens SET used_at=UTC_TIMESTAMP() WHERE id=:id')->execute([':id' => $row['id']]);
+        $pdo->prepare('UPDATE customer_users SET verified_at=COALESCE(verified_at,UTC_TIMESTAMP()),updated_at=UTC_TIMESTAMP() WHERE id=:id')
+            ->execute([':id' => $row['customer_id']]);
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $e;
+    }
+    json_response(['ok' => true, 'message' => 'E-Mail bestätigt. Du kannst dich jetzt anmelden.']);
+}
 
 if ($action === 'register') {
     $email = customer_email($d['email'] ?? '');
