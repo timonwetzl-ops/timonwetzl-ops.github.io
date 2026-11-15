@@ -60,7 +60,22 @@ if($action==='booking_update'){
  if(!preg_match('/^[a-f0-9]{32}$/',$id)||!in_array($s,['neu','bestätigt','abgelehnt'],true)||!in_array($p,['offen','bezahlt','fehlgeschlagen','erstattet'],true))json_response(['error'=>'Ungültige Angaben.'],400);
  $q=$pdo->prepare("SELECT price_cents FROM bookings WHERE id=:id");$q->execute([':id'=>$id]);$row=$q->fetch();if(!$row)json_response(['error'=>'Buchung nicht gefunden.'],404);
  $paid=$p==='bezahlt'?(int)$row['price_cents']:0;
- $q=$pdo->prepare("UPDATE bookings SET booking_status=:s,payment_status=:p,paid_amount_cents=:a,updated_at=UTC_TIMESTAMP() WHERE id=:id");$q->execute([':s'=>$s,':p'=>$p,':a'=>$paid,':id'=>$id]);json_response(['ok'=>true]);
+ try {
+  $pdo->beginTransaction();
+  if($s==='abgelehnt'){$q=$pdo->prepare("DELETE FROM booking_lock_halves WHERE booking_id=:id");$q->execute([':id'=>$id]);}
+  else {
+   $q=$pdo->prepare("SELECT event_start,event_end FROM bookings WHERE id=:id");$q->execute([':id'=>$id]);$dates=$q->fetch();
+   $slots=date_slots((string)$dates['event_start'],(string)$dates['event_end']);
+   $q=$pdo->prepare("INSERT INTO booking_lock_halves(lock_date,half,booking_id) VALUES(:d,:h,:id)");
+   foreach($slots as [$day,$half]){$q->execute([':d'=>$day,':h'=>$half,':id'=>$id]);}
+  }
+  $q=$pdo->prepare("UPDATE bookings SET booking_status=:s,payment_status=:p,paid_amount_cents=:a,updated_at=UTC_TIMESTAMP() WHERE id=:id");
+  $q->execute([':s'=>$s,':p'=>$p,':a'=>$paid,':id'=>$id]);$pdo->commit();json_response(['ok'=>true]);
+ } catch(PDOException $e) {
+  if($pdo->inTransaction())$pdo->rollBack();
+  if(($e->errorInfo[1]??null)===1062)json_response(['error'=>'Der Zeitraum wurde inzwischen anderweitig vergeben.'],409);
+  error_log('Admin booking update: '.$e->getMessage());json_response(['error'=>'Buchung konnte nicht aktualisiert werden.'],503);
+ }
 }
 if($action==='package_save'){
  $id=clean_text($d['id']??'',32);$p=$d['package']??null;
