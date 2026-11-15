@@ -18,6 +18,8 @@ The target is Hetzner Webhosting M. It supports PHP and MariaDB/MySQL-compatible
 - `api/customer.php`: customer registration, email verification, login, password reset, booking list and account deletion.
 - `lib/customer.php`: customer sessions, hashed one-time tokens, rate limits and email helper.
 - `migrations/002_customer_accounts.sql`: add customer account tables to an existing MariaDB database.
+- The customer-account migration also adds the booking-to-customer foreign key and the contact-form rate-limit table.
+- Public contact submissions are limited to five per IP-hash per hour; the raw IP is not stored.
 - `api/content.php`: public homepage, gallery and legal-page content from MariaDB.
 - `api/media-upload.php`: admin-only image upload (JPG/PNG/WebP, max. 5 MB) with session and CSRF checks; uploads are stored under `uploads/candybar/`.
 - `create-admin.php`: CLI-only admin account setup; never exposed through HTTP.
