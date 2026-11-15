@@ -73,9 +73,7 @@
   <div class="dash-section">
     <h2>Startseite</h2><p class="center-note">Startseitentext und Hauptbild-Adresse werden über PHP in MariaDB gespeichert.</p>
     <div class="card">
-      <label class="fileBtn">📷 Hauptbild ändern
-        <input type="file" accept="image/*" onchange="handleHeroUpload(event)">
-      </label>
+      <label class="fileBtn">📷 Hauptbild hochladen <input id="heroUpload" type="file" accept="image/jpeg,image/png,image/webp"></label>
       <div id="heroPreviewWrap" style="margin-top:14px;"><img id="heroPreview" style="width:200px;border-radius:12px;"></div>
       <div class="row"><input id="heroImageInput" type="url" placeholder="HTTPS-Bildadresse für das Hauptbild"></div>
       <div class="row"><textarea id="heroTextInput" placeholder="Startseitentext"></textarea></div>
@@ -107,7 +105,7 @@
   </div>
 
   <div class="dash-section">
-    <h2>Galerie-Bilder</h2><div class="card"><p>Eine Bildadresse pro Zeile. Es werden HTTPS-Adressen akzeptiert. Bestehende Firebase-Bildadressen können vorerst weiterverwendet werden.</p><div class="row"><textarea id="galleryUrlsInput" placeholder="https://…"></textarea></div><div class="row"><button onclick="saveGallery()">Galerie speichern</button></div><div class="msg" id="galleryMsg"></div></div><div class="imgList" id="imgList"></div>
+    <h2>Galerie-Bilder</h2><div class="card"><p>Eine Bildadresse pro Zeile. Es werden HTTPS-Adressen akzeptiert. Bestehende Firebase-Bildadressen können vorerst weiterverwendet werden.</p><div class="row"><label class="fileBtn">Bilder hochladen <input id="galleryUpload" type="file" accept="image/jpeg,image/png,image/webp" multiple></label></div><div class="row"><textarea id="galleryUrlsInput" placeholder="Eine Bildadresse pro Zeile"></textarea></div><div class="row"><button onclick="saveGallery()">Galerie speichern</button></div><div class="msg" id="galleryMsg"></div></div><div class="imgList" id="imgList"></div>
   </div>
 
   <div class="dash-section">
@@ -185,11 +183,28 @@ window.savePackage=async btn=>{
  const p={name:card.querySelector(".pName").value,priceCents:Math.round(Number(card.querySelector(".pPrice").value)*100),description:card.querySelector(".pDesc").value,includes:card.querySelector(".pIncludes").value.split("\n").map(x=>x.trim()).filter(Boolean),note:card.querySelector(".pNote").value};
  try{await request("package_save",{id,package:p});$("pkgMsg").textContent="Paket gespeichert.";await loadAll();}catch(e){alert(e.message);}
 };
+async function uploadImage(file){
+ const form=new FormData();form.append("image",file);
+ const response=await fetch("./backend/php/api/media-upload.php",{method:"POST",headers:{"X-CSRF-Token":csrf,"Accept":"application/json"},body:form});
+ const result=await response.json().catch(()=>({error:"Ungültige Serverantwort."}));
+ if(!response.ok)throw new Error(result.error||"Upload fehlgeschlagen.");
+ return result.url;
+}
+$("heroUpload").addEventListener("change",async event=>{
+ const file=event.target.files?.[0];if(!file)return;
+ try{const url=await uploadImage(file);$("heroImageInput").value=new URL(url,location.href).href;$("heroPreview").src=url;$("homeMsg").textContent="Bild hochgeladen. Klicke jetzt auf „Startseite speichern“.";}
+ catch(e){alert(e.message);}finally{event.target.value="";}
+});
+$("galleryUpload").addEventListener("change",async event=>{
+ const files=Array.from(event.target.files||[]);if(!files.length)return;
+ try{const urls=[];for(const file of files)urls.push(await uploadImage(file));const existing=$("galleryUrlsInput").value.split("\n").map(x=>x.trim()).filter(Boolean);$("galleryUrlsInput").value=[...existing,...urls.map(x=>new URL(x,location.href).href)].join("\n");$("galleryMsg").textContent=urls.length+" Bild(er) hochgeladen. Klicke jetzt auf „Galerie speichern“.";}
+ catch(e){alert(e.message);}finally{event.target.value="";}
+});
 window.saveHomeText=async()=>{try{await request("setting_save",{key:"heroText",value:$("heroTextInput").value});await request("setting_save",{key:"heroImage",value:$("heroImageInput").value.trim()});$("homeMsg").textContent="Startseite gespeichert.";}catch(e){alert(e.message);}};
 window.saveGallery=async()=>{try{const urls=$("galleryUrlsInput").value.split("\n").map(x=>x.trim()).filter(Boolean);await request("setting_save",{key:"galleryImages",value:JSON.stringify(urls)});$("galleryMsg").textContent="Galerie gespeichert.";}catch(e){alert(e.message);}};
 window.saveLegal=async field=>{try{await request("setting_save",{key:field,value:$("legal_"+field).value});$("legalMsg").textContent="Gespeichert.";}catch(e){alert(e.message);}};
-document.querySelectorAll('input[type="file"]').forEach(x=>{x.disabled=true;});
-document.querySelectorAll(".fileBtn").forEach(x=>{x.style.display="none";});
+$("heroPreview").onerror=()=>{$("heroPreview").style.display="none";};
+$("heroPreview").onload=()=>{$("heroPreview").style.display="inline-block";};
 
 checkSession();
 </script>
