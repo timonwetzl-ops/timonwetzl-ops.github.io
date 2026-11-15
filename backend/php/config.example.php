@@ -22,6 +22,15 @@ return [
             'rundumsorglos' => ['name' => 'Rundum sorglos', 'price_cents' => 22900],
         ],
     ],
+    'app' => [
+        // Vor dem Aktivieren durch die echte HTTPS-Adresse der Website ersetzen.
+        'base_url' => 'https://candybar-vogtland.de',
+    ],
+    'mail' => [
+        // Absenderadresse muss beim Hosting für den Versand eingerichtet sein.
+        'from' => 'candybar.vogtland@gmail.com',
+        'from_name' => 'Candy Bar Vogtland',
+    ],
     'security' => [
         // Generate a long random value before deployment.
         'rate_limit_secret' => 'CHANGE_TO_A_LONG_RANDOM_SECRET',
