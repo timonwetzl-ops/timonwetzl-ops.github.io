@@ -28,7 +28,7 @@ return [
     ],
     'mail' => [
         // Absenderadresse muss beim Hosting für den Versand eingerichtet sein.
-        'from' => 'candybar.vogtland@gmail.com',
+        'from' => 'noreply@candybar-vogtland.de',
         'from_name' => 'Candy Bar Vogtland',
     ],
     'security' => [
