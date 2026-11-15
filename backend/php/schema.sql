@@ -1,6 +1,37 @@
 -- MariaDB schema for Candy Bar Vogtland PHP backend.
 -- Run only on a new/test database first. Do not import live data yet.
 
+CREATE TABLE IF NOT EXISTS customer_users (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(254) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    verified_at DATETIME NULL,
+    active TINYINT(1) NOT NULL DEFAULT 1,
+    last_login_at DATETIME NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS customer_tokens (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    customer_id BIGINT UNSIGNED NOT NULL,
+    purpose ENUM('verify','reset') NOT NULL,
+    token_hash CHAR(64) NOT NULL UNIQUE,
+    expires_at DATETIME NOT NULL,
+    used_at DATETIME NULL,
+    created_at DATETIME NOT NULL,
+    INDEX idx_customer_tokens_owner (customer_id,purpose,used_at),
+    CONSTRAINT fk_customer_token_owner FOREIGN KEY (customer_id)
+        REFERENCES customer_users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS customer_auth_attempts (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    email_hash CHAR(64) NOT NULL,
+    attempted_at DATETIME NOT NULL,
+    INDEX idx_customer_auth_attempts_email_time (email_hash,attempted_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS bookings (
     id CHAR(32) NOT NULL PRIMARY KEY,
     name VARCHAR(120) NOT NULL,
@@ -8,6 +39,7 @@ CREATE TABLE IF NOT EXISTS bookings (
     phone VARCHAR(60) NOT NULL,
     location VARCHAR(180) NOT NULL,
     message TEXT NOT NULL,
+    customer_id BIGINT UNSIGNED NULL,
     package_id VARCHAR(32) NOT NULL,
     package_name VARCHAR(80) NOT NULL,
     event_start DATE NOT NULL,
@@ -25,7 +57,10 @@ CREATE TABLE IF NOT EXISTS bookings (
     updated_at DATETIME NULL,
     INDEX idx_bookings_event_start (event_start),
     INDEX idx_bookings_email (email),
-    INDEX idx_bookings_status (booking_status)
+    INDEX idx_bookings_status (booking_status),
+    INDEX idx_bookings_customer (customer_id),
+    CONSTRAINT fk_booking_customer FOREIGN KEY (customer_id)
+        REFERENCES customer_users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Every occupied full day is represented by AM + PM. Pickup takes PM,
