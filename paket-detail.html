@@ -49,46 +49,22 @@
 <footer class="site-footer" id="site-footer"></footer>
 
 <script type="module">
-  import { renderNav, renderFooter } from "./nav.js";
-  import { db, placeholderImg } from "./firebase-init.js";
-  import { getPackage, PACKAGE_IDS } from "./packages-default.js";
-  import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { renderNav, renderFooter } from "./nav.js";
+renderNav(location.pathname.split("/").pop()||"index.html");renderFooter();
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const euro=n=>(Number(n||0)/100).toLocaleString("de-DE",{style:"currency",currency:"EUR"});
+async function api(url){const r=await fetch(url,{headers:{Accept:"application/json"}});const d=await r.json();if(!r.ok)throw Error(d.error||"Laden fehlgeschlagen");return d;}
 
-  renderNav("pakete.html");
-  renderFooter();
-
-  const params = new URLSearchParams(location.search);
-  const id = params.get("id");
-  const VALID_IDS = PACKAGE_IDS;
-
-  async function load(){
-    const content = document.getElementById("detailContent");
-    if(!id || !VALID_IDS.includes(id)){
-      content.innerHTML = `<p class="center-note">Dieses Paket wurde nicht gefunden. <a href="pakete.html" style="color:var(--mint)">Zurück zu den Paketen</a></p>`;
-      return;
-    }
-    const p = await getPackage(id);
-    const images = (p.images && p.images.length) ? p.images : [placeholderImg(p.name||id,"#e8789e")];
-    const includes = (p.includes || []).filter(Boolean);
-    const extras = (p.extras || []).filter(Boolean);
-
-    content.innerHTML = `
-      <div class="detail-img-wrap">
-        <div class="detail-img"><img src="${images[0]}"></div>
-      </div>
-      <div>
-        <div class="eyebrow">Paket</div>
-        <h1 class="section-title" style="margin-bottom:0">${p.name||""}</h1>
-        <div class="detail-price">${p.price||""} <small style="font-size:.65em">für den 1. Veranstaltungstag</small></div>
-        <p style="color:var(--cream-dim);font-size:.85rem;margin:-8px 0 14px">Jeder weitere Veranstaltungstag: +89 €</p>
-        <p style="color:var(--cream-dim)">${p.description||""}</p>
-        ${includes.length ? `<ul class="includes">${includes.map(i=>`<li><span class="check">✓</span><span>${i}</span></li>`).join("")}</ul>` : ""}
-        ${extras.length ? `<div class="extras-title">${p.extrasTitle || "Details"}</div><ul class="extras">${extras.map(i=>`<li>${i}</li>`).join("")}</ul>` : ""}
-        ${p.note ? `<div class="detail-note">${p.note}</div>` : ""}
-        <a class="btn" href="anfrage.html?package=${encodeURIComponent(p.name||id)}">Jetzt buchen</a>
-      </div>`;
-  }
-  load();
+const id=new URLSearchParams(location.search).get("id");
+async function load(){
+ const content=document.getElementById("detailContent");
+ try{
+  if(!["basic","comfort","rundumsorglos"].includes(id))throw Error("Paket nicht gefunden.");
+  const {packages}=await api("./backend/php/api/packages.php"),p=packages.find(x=>x.id===id);if(!p)throw Error("Paket nicht gefunden.");
+  const img=(p.images||[]).find(x=>x.startsWith("https://"));
+  content.innerHTML=`${img?`<div class="detail-img-wrap"><div class="detail-img"><img src="${esc(img)}" alt="${esc(p.name)}"></div></div>`:'<div class="detail-img-wrap"><div class="detail-img"></div></div>'}<div><div class="eyebrow">Paket</div><h1 class="section-title" style="margin-bottom:0">${esc(p.name)}</h1><div class="detail-price">${euro(p.priceCents)} <small style="font-size:.65em">für den 1. Veranstaltungstag</small></div><p style="color:var(--cream-dim);font-size:.85rem;margin:-8px 0 14px">Jeder weitere Veranstaltungstag: +89 €</p><p style="color:var(--cream-dim)">${esc(p.description)}</p>${p.includes.length?`<ul class="includes">${p.includes.map(x=>`<li><span class="check">✓</span><span>${esc(x)}</span></li>`).join("")}</ul>`:""}${p.extras.length?`<div class="extras-title">${esc(p.extrasTitle||"Details")}</div><ul class="extras">${p.extras.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}${p.note?`<div class="detail-note">${esc(p.note)}</div>`:""}<a class="btn" href="anfrage.html?package=${encodeURIComponent(p.id)}">Jetzt buchen</a></div>`;
+ }catch(e){content.innerHTML='<p class="center-note">Dieses Paket konnte nicht geladen werden. <a href="pakete.html">Zurück zu den Paketen</a></p>';console.error(e);}
+}load();
 </script>
 </body>
 </html>

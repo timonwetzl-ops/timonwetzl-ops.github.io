@@ -1,0 +1,95 @@
+name: Backend checks
+
+on:
+  push:
+    branches: [firebase-security-fix]
+  pull_request:
+    branches: [main]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+      - name: JavaScript syntax
+        run: |
+          node --check backend/cloudflare/worker.js
+          node --check functions/index.js
+      - name: Frontend module syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          import subprocess
+          import tempfile
+
+          sources = [
+              "firebase-init.js", "firebase-config.js", "booking-logic.js",
+              "booking-store.js", "packages-default.js", "nav.js"
+          ]
+          for source in sources:
+              with tempfile.NamedTemporaryFile("w", suffix=".mjs", encoding="utf-8") as temp:
+                  temp.write(Path(source).read_text(encoding="utf-8"))
+                  temp.flush()
+                  subprocess.run(["node", "--check", temp.name], check=True)
+
+          for page in ["anfrage.html", "kontakt.html", "dashboard.html", "index.html", "pakete.html", "paket-detail.html", "galerie.html", "impressum.html", "agb.html", "datenschutz.html"]:
+              html = Path(page).read_text(encoding="utf-8")
+              for index, script in enumerate(re.findall(r'<script type="module">(.*?)</script>', html, re.S)):
+                  with tempfile.NamedTemporaryFile("w", suffix=".mjs", encoding="utf-8") as temp:
+                      temp.write(script)
+                      temp.flush()
+                      subprocess.run(["node", "--check", temp.name], check=True)
+          PY
+      - name: PHP syntax
+        run: |
+          php -l backend/php/lib/bootstrap.php
+          php -l backend/php/lib/customer.php
+          php -l backend/php/api/blocked.php
+          php -l backend/php/api/packages.php
+          php -l backend/php/api/bookings.php
+          php -l backend/php/api/admin.php
+          php -l backend/php/api/customer.php
+          php -l backend/php/api/contacts.php
+          php -l backend/php/api/content.php
+          php -l backend/php/api/media-upload.php
+          php -l backend/php/create-admin.php
+          php -l backend/php/tests/run.php
+          php -l backend/php/tests/mariadb-integration.php
+          php backend/php/tests/run.php
+      - name: D1 schema and booking-lock tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
+
+  mariadb-integration:
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo_mysql
+      - name: MariaDB schema and migration integration tests
+        env:
+          MYSQL_HOST: 127.0.0.1
+          MYSQL_PORT: 3306
+          MYSQL_USER: root
+          MYSQL_PASSWORD: root
+        run: php backend/php/tests/mariadb-integration.php

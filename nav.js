@@ -1,5 +1,4 @@
-import { auth } from "./firebase-init.js";
-import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+const CUSTOMER_API = "./backend/php/api/customer.php";
 
 const NAV_LINKS = [
   { href: "index.html", label: "Startseite" },
@@ -41,17 +40,38 @@ export function renderNav(activePage) {
   setupTheme();
 
   const authLink = document.getElementById("navAuthLink");
-  onAuthStateChanged(auth, (user) => {
-    if (user) {
-      authLink.textContent = "Abmelden";
-      authLink.href = "#";
-      authLink.onclick = (e) => { e.preventDefault(); signOut(auth).then(()=>location.href="index.html"); };
-    } else {
+  fetch(CUSTOMER_API + "?action=me", { headers: { Accept: "application/json" } })
+    .then(response => response.ok ? response.json() : null)
+    .then(state => {
+      if (state?.authenticated) {
+        authLink.textContent = "Abmelden";
+        authLink.href = "#";
+        authLink.onclick = async (event) => {
+          event.preventDefault();
+          authLink.textContent = "Wird abgemeldet …";
+          try {
+            const response = await fetch(CUSTOMER_API, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Accept": "application/json", "X-CSRF-Token": state.csrf || "" },
+              body: JSON.stringify({ action: "logout" })
+            });
+            if (!response.ok) throw new Error("Abmelden fehlgeschlagen.");
+            location.href = "index.html";
+          } catch (error) {
+            authLink.textContent = "Abmelden";
+            alert(error.message || "Bitte versuche es erneut.");
+          }
+        };
+      } else {
+        authLink.textContent = "Anmelden";
+        authLink.href = "anmelden.html";
+        authLink.onclick = null;
+      }
+    })
+    .catch(() => {
       authLink.textContent = "Anmelden";
       authLink.href = "anmelden.html";
-      authLink.onclick = null;
-    }
-  });
+    });
 }
 
 // ---------- Menü (Handy): Kreuz zum Schließen, Tippen daneben, Wischen, Esc ----------

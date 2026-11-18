@@ -27,31 +27,18 @@
 <footer class="site-footer" id="site-footer"></footer>
 
 <script type="module">
-  import { renderNav, renderFooter } from "./nav.js";
-  import { db, placeholderImg } from "./firebase-init.js";
-  import { getAllPackages } from "./packages-default.js";
-  import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { renderNav, renderFooter } from "./nav.js";
+renderNav(location.pathname.split("/").pop()||"index.html");renderFooter();
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const euro=n=>(Number(n||0)/100).toLocaleString("de-DE",{style:"currency",currency:"EUR"});
+async function api(url){const r=await fetch(url,{headers:{Accept:"application/json"}});const d=await r.json();if(!r.ok)throw Error(d.error||"Laden fehlgeschlagen");return d;}
 
-  renderNav("pakete.html");
-  renderFooter();
-
-  async function loadPackages(){
-    const grid = document.getElementById("packagesGrid");
-    grid.innerHTML = "";
-    const packages = await getAllPackages();
-    for(const p of packages){
-      const img = (p.images && p.images[0]) || placeholderImg(p.name||p.id,"#e8789e");
-      grid.innerHTML += `
-        <a class="pkg-card" href="paket-detail.html?id=${p.id}">
-          <div class="thumb"><img src="${img}" alt="${p.name||'Paket'}" loading="lazy" decoding="async"></div>
-          <div class="accent"></div>
-          <h3>${p.name||""}</h3>
-          <div class="price">${p.price||""} <small>für den ersten Tag</small></div>
-          <p>${p.description||""}</p>
-        </a>`;
-    }
-  }
-  loadPackages();
+async function load(){
+ const grid=document.getElementById("packagesGrid");
+ try{const {packages}=await api("./backend/php/api/packages.php");
+ grid.innerHTML=packages.map(p=>{const img=(p.images||[]).find(x=>x.startsWith("https://"));return `<a class="pkg-card" href="paket-detail.html?id=${encodeURIComponent(p.id)}"><div class="thumb">${img?`<img src="${esc(img)}" alt="${esc(p.name)}" loading="lazy" decoding="async">`:""}</div><div class="accent"></div><h3>${esc(p.name)}</h3><div class="price">${euro(p.priceCents)} <small>für den ersten Tag</small></div><p>${esc(p.description)}</p></a>`;}).join("");
+ }catch(e){grid.innerHTML='<p class="center-note">Pakete konnten gerade nicht geladen werden. Bitte versuche es später erneut.</p>';console.error(e);}
+}load();
 </script>
 </body>
 </html>

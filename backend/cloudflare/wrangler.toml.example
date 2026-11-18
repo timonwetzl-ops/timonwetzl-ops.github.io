@@ -1,0 +1,13 @@
+name = "candybar-vogtland-api"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "candybar-vogtland"
+database_id = "HIER_DIE_D1_DATABASE_ID_EINTRAGEN"
+
+[vars]
+ALLOWED_ORIGIN = "https://timonwetzl-ops.github.io"
+FIREBASE_PROJECT_ID = "candybar-a33ca"
+ADMIN_EMAIL = "vermietung.candybar@gmail.com"

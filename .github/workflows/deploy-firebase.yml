@@ -1,0 +1,50 @@
+name: Deploy Firebase
+
+on:
+  # Erst nach dem Merge auf main wird Firebase automatisch aktualisiert.
+  push:
+    branches:
+      - main
+    paths:
+      - "functions/**"
+      - "firestore.rules"
+      - "storage.rules"
+      - "firebase.json"
+      - ".github/workflows/deploy-firebase.yml"
+  # Optionaler manueller Start über GitHub Actions.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: firebase-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Node.js einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Bei Google Cloud anmelden (Workload Identity Federation)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/310456556896/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: github-actions@candybar-a33ca.iam.gserviceaccount.com
+
+      - name: Firebase CLI installieren
+        run: npm install --global firebase-tools
+
+      - name: Functions-Abhängigkeiten installieren
+        run: npm install --prefix functions
+
+      - name: Firebase Functions, Firestore- und Storage-Regeln veröffentlichen
+        run: firebase deploy --only functions,firestore:rules,storage --project candybar-a33ca

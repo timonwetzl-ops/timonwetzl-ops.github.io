@@ -20,6 +20,18 @@
     <div class="eyebrow">Dein Konto</div>
     <h2 class="section-title">Meine Buchungen</h2>
     <div id="bookingsList"><p class="center-note">Lädt…</p></div>
+
+    <section class="panel" style="margin-top:42px;">
+      <div class="eyebrow">Verwalten</div>
+      <h3 style="margin:0 0 8px;">Kontoeinstellungen</h3>
+      <p style="color:var(--cream-dim);font-size:.9rem;margin:0 0 16px;">
+        Hier kannst du dein Candy-Bar-Kundenkonto dauerhaft löschen.
+        Bestehende Buchungen werden dadurch nicht storniert und bleiben zunächst als Buchungsunterlagen erhalten.
+      </p>
+      <button class="btn block" id="deleteAccountBtn" type="button"
+        style="background:#a83248;border-color:#a83248;color:#fff;">Konto dauerhaft löschen</button>
+      <p id="deleteAccountMsg" role="status" style="font-size:.9rem;margin:10px 0 0;"></p>
+    </section>
   </section>
 </main>
 
@@ -27,99 +39,104 @@
 
 <script type="module">
   import { renderNav, renderFooter } from "./nav.js";
-  import { db, auth } from "./firebase-init.js";
-  import { collection, query, where, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { nice } from "./booking-logic.js";
-
-  function dateText(b){
-    if(b.firstEventDay && b.lastEventDay && b.lastEventDay !== b.firstEventDay) return `${nice(b.firstEventDay)} – ${nice(b.lastEventDay)}`;
-    const d = b.firstEventDay || b.eventDate;
-    return d ? nice(d) : "";
-  }
-
   renderNav("meine-buchungen.html");
   renderFooter();
 
-  onAuthStateChanged(auth, (user)=>{
-    if(!user || !user.emailVerified){
-      location.href = "anmelden.html?next=meine-buchungen.html";
-      return;
+  const API = "./backend/php/api/customer.php";
+  const $ = id => document.getElementById(id);
+  let csrf = "";
+  const esc = value => String(value ?? "").replace(/[&<>"']/g, ch => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[ch]));
+  const date = value => {
+    if (!value) return "—";
+    const d = new Date(String(value).slice(0,10) + "T12:00:00");
+    return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString("de-DE");
+  };
+  const euro = cents => (Number(cents || 0) / 100).toLocaleString("de-DE", { style:"currency", currency:"EUR" });
+  const bookingLabel = status => status === "bestätigt" ? "Bestätigt" : status === "abgelehnt" ? "Abgelehnt" : "Eingegangen";
+  const paymentLabel = status => status === "bezahlt" ? "Bezahlt" : status === "fehlgeschlagen" ? "Fehlgeschlagen" : status === "erstattet" ? "Erstattet" : "Offen";
+  const paymentClass = status => status === "bezahlt" ? "bestätigt" : status === "fehlgeschlagen" ? "abgelehnt" : "neu";
+
+  async function getJson(url, headers = {}) {
+    const response = await fetch(url, { headers: { Accept:"application/json", ...headers } });
+    const result = await response.json().catch(() => ({ error:"Ungültige Serverantwort." }));
+    if (!response.ok) throw new Error(result.error || "Daten konnten nicht geladen werden.");
+    return result;
+  }
+  async function post(action, data = {}) {
+    const response = await fetch(API, {
+      method:"POST",
+      headers: { "Content-Type":"application/json", "Accept":"application/json", "X-CSRF-Token":csrf },
+      body: JSON.stringify({ action, ...data })
+    });
+    const result = await response.json().catch(() => ({ error:"Ungültige Serverantwort." }));
+    if (!response.ok) throw new Error(result.error || "Aktion fehlgeschlagen.");
+    return result;
+  }
+
+  async function load() {
+    const list = $("bookingsList");
+    try {
+      const me = await getJson(API + "?action=me");
+      if (!me.authenticated) {
+        location.href = "anmelden.html?next=meine-buchungen.html";
+        return;
+      }
+      csrf = me.csrf || "";
+      const result = await getJson(API + "?action=bookings", { "X-CSRF-Token":csrf });
+      const rows = result.bookings || [];
+      if (!rows.length) {
+        list.innerHTML = "<p class='center-note'>Du hast noch keine Buchungen. <a href='pakete.html' style='color:var(--mint)'>Jetzt ein Paket ansehen</a></p>";
+        return;
+      }
+      list.innerHTML = rows.map(b => {
+        const paid = Number(b.paid_amount_cents || 0);
+        const price = Number(b.price_cents || 0);
+        const open = Math.max(price - paid, 0);
+        const range = date(b.event_start) === date(b.event_end) ? date(b.event_start) : date(b.event_start) + " – " + date(b.event_end);
+        return `
+          <div class="booking-row" style="flex-direction:column;align-items:flex-start;">
+            <div style="display:flex;justify-content:space-between;width:100%;flex-wrap:wrap;gap:10px;">
+              <div>
+                <strong>${esc(b.package_name)}</strong> — ${esc(range)}<br>
+                <span style="color:var(--cream-dim);font-size:.82rem">Abholung: ${esc(date(b.pickup_date))} · Rückgabe: ${esc(date(b.return_date))}</span><br>
+                <span style="color:var(--cream-dim);font-size:.85rem">${b.location ? "Ort: " + esc(b.location) : ""} ${b.message ? " · " + esc(b.message) : ""}</span>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <div class="status-badge ${esc(b.booking_status)}">Buchung: ${esc(bookingLabel(b.booking_status))}</div>
+                <div class="status-badge ${paymentClass(b.payment_status)}">Zahlung: ${esc(paymentLabel(b.payment_status))}</div>
+              </div>
+            </div>
+            <div style="font-size:.85rem;color:var(--cream-dim);margin-top:10px">
+              Preis: ${euro(price)} · Bezahlt: ${euro(paid)} · Offen: ${euro(open)}
+            </div>
+          </div>`;
+      }).join("");
+    } catch (error) {
+      list.innerHTML = "<p class='center-note'>" + esc(error.message) + "</p>";
     }
-    loadBookings(user.uid);
+  }
+
+  $("deleteAccountBtn").addEventListener("click", async () => {
+    const msg = $("deleteAccountMsg");
+    const first = confirm("Möchtest du dein Kundenkonto wirklich dauerhaft löschen? Deine bisherigen Buchungsunterlagen werden dadurch nicht automatisch gelöscht.");
+    if (!first) return;
+    const password = prompt("Bitte gib zur Bestätigung dein Kontopasswort ein:");
+    if (password === null || password === "") { msg.textContent = "Löschen abgebrochen."; return; }
+    const btn = $("deleteAccountBtn");
+    btn.disabled = true;
+    msg.textContent = "Konto wird gelöscht …";
+    try {
+      await post("delete", { password });
+      location.href = "index.html";
+    } catch (error) {
+      msg.textContent = error.message;
+      btn.disabled = false;
+    }
   });
 
-  async function getStripeLink(packageName){
-    const ids = ["basic","comfort","rundumsorglos"];
-    for(const id of ids){
-      const snap = await getDoc(doc(db,"packages",id));
-      if(snap.exists() && snap.data().name === packageName) return snap.data().stripeLink || "";
-    }
-    return "";
-  }
-
-  async function loadBookings(uid){
-    const list = document.getElementById("bookingsList");
-    const snap = await getDocs(query(collection(db,"bookings"), where("uid","==",uid)));
-    if(snap.empty){
-      list.innerHTML = "<p class='center-note'>Du hast noch keine Buchungen. <a href='pakete.html' style='color:var(--mint)'>Jetzt ein Paket ansehen</a></p>";
-      return;
-    }
-    const rows = [];
-    snap.forEach(d => rows.push(d.data()));
-    rows.sort((a,b) => (a.eventDate||"").localeCompare(b.eventDate||""));
-
-    const htmlParts = [];
-    for(const b of rows){
-      const price = b.price || 0;
-      const paid = b.paymentStatus === "bezahlt" ? price : (b.paidAmount || 0);
-      const open = Math.max(price - paid, 0);
-      const canPay = b.bookingStatus === "bestätigt" && b.paymentStatus !== "bezahlt";
-      let payButton = "";
-      if(canPay){
-        const link = await getStripeLink(b.package);
-        payButton = link
-          ? `<a class="btn" style="margin-top:12px;display:inline-block" href="${link}" target="_blank">Jetzt bezahlen (${price.toFixed(2)} €)</a>`
-          : `<p style="color:var(--cream-dim);font-size:.85rem;margin-top:8px">Zahlungslink folgt in Kürze.</p>`;
-      }
-      htmlParts.push(`
-        <div class="booking-row" style="flex-direction:column;align-items:flex-start;">
-          <div style="display:flex;justify-content:space-between;width:100%;flex-wrap:wrap;gap:10px;">
-            <div>
-              <strong>${b.package||""}</strong> — ${dateText(b)}<br>
-              ${b.firstEventDay && b.startDate ? `<span style="color:var(--cream-dim);font-size:.82rem">Abholung: ${nice(b.startDate)} · Rückgabe: ${nice(b.endDate)}</span><br>` : ""}
-              <span style="color:var(--cream-dim);font-size:.85rem">${b.location ? "Ort: "+b.location : ""} ${b.message ? " · "+b.message : ""}</span>
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-              <div class="status-badge ${b.bookingStatus||b.status}">Buchung: ${statusLabel(b.bookingStatus||b.status)}</div>
-              <div class="status-badge ${paymentClass(b.paymentStatus)}">Zahlung: ${paymentLabel(b.paymentStatus)}</div>
-            </div>
-          </div>
-          <div style="font-size:.85rem;color:var(--cream-dim);margin-top:10px">
-            Preis: ${price.toFixed(2)} € · Bezahlt: ${paid.toFixed(2)} € · Offen: ${open.toFixed(2)} €
-          </div>
-          ${payButton}
-        </div>`);
-    }
-    list.innerHTML = htmlParts.join("");
-  }
-
-  function statusLabel(status){
-    if(status === "bestätigt") return "Bestätigt";
-    if(status === "abgelehnt") return "Abgelehnt";
-    return "Buchung eingegangen";
-  }
-  function paymentLabel(status){
-    if(status === "bezahlt") return "Bezahlt ✅";
-    if(status === "fehlgeschlagen") return "Fehlgeschlagen";
-    if(status === "erstattet") return "Erstattet";
-    return "Offen";
-  }
-  function paymentClass(status){
-    if(status === "bezahlt") return "bestätigt";
-    if(status === "fehlgeschlagen") return "abgelehnt";
-    return "neu";
-  }
+  load();
 </script>
 </body>
 </html>

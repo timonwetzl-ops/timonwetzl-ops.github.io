@@ -32,6 +32,8 @@
       <label>Betreff (optional)</label>
       <input type="text" id="c_subject">
 
+      <div aria-hidden="true" style="position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden;"><label for="c_website">Website</label><input type="text" id="c_website" tabindex="-1" autocomplete="off"></div>
+
       <label>Nachricht</label>
       <textarea id="c_message" required></textarea>
 
@@ -44,35 +46,20 @@
 <footer class="site-footer" id="site-footer"></footer>
 
 <script type="module">
-  import { renderNav, renderFooter } from "./nav.js";
-  import { db } from "./firebase-init.js";
-  import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-  renderNav("kontakt.html");
-  renderFooter();
-
-  document.getElementById("contactForm").addEventListener("submit", async (e)=>{
-    e.preventDefault();
-    const status = document.getElementById("contactStatus");
-    status.textContent = "Wird gesendet…";
-    status.style.color = "var(--cream-dim)";
-    try{
-      await addDoc(collection(db,"contacts"),{
-        name: document.getElementById("c_name").value,
-        email: document.getElementById("c_email").value,
-        address: document.getElementById("c_address").value,
-        subject: document.getElementById("c_subject").value,
-        message: document.getElementById("c_message").value,
-        createdAt: serverTimestamp()
-      });
-      status.textContent = "Danke! Deine Nachricht ist angekommen.";
-      status.style.color = "var(--mint)";
-      e.target.reset();
-    }catch(err){
-      status.textContent = "Ups, das hat nicht geklappt. Versuch's nochmal.";
-      status.style.color = "var(--pink)";
-    }
-  });
+import { renderNav, renderFooter } from "./nav.js";
+renderNav("kontakt.html");renderFooter();
+document.getElementById("contactForm").addEventListener("submit",async e=>{
+ e.preventDefault();const form=e.currentTarget,status=document.getElementById("contactStatus"),button=form.querySelector('button[type="submit"]');
+ button.disabled=true;status.textContent="Wird gesendet…";
+ try{
+  const response=await fetch("./backend/php/api/contacts.php",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({
+   name:document.getElementById("c_name").value,email:document.getElementById("c_email").value,address:document.getElementById("c_address").value,subject:document.getElementById("c_subject").value,message:document.getElementById("c_message").value,website:document.getElementById("c_website").value
+  })});
+  const result=await response.json();if(!response.ok)throw new Error(result.error||"Nachricht konnte nicht gesendet werden.");
+  status.textContent="Danke! Deine Nachricht ist angekommen.";status.style.color="var(--mint)";form.reset();
+ }catch(err){status.textContent=err.message||"Ups, das hat nicht geklappt. Versuch's nochmal.";status.style.color="var(--pink)";}
+ finally{button.disabled=false;}
+});
 </script>
 </body>
 </html>

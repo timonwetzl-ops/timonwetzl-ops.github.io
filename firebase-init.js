@@ -2,13 +2,13 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
-import { firebaseConfig, DASHBOARD_CODE, ADMIN_EMAIL } from "./firebase-config.js";
+import { firebaseConfig, ADMIN_EMAIL } from "./firebase-config.js";
 
 export const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
-export { DASHBOARD_CODE, ADMIN_EMAIL };
+export { ADMIN_EMAIL };
 
 export async function uploadFile(file, pathPrefix) {
   const fileRef = ref(storage, `${pathPrefix}/${Date.now()}_${file.name}`);

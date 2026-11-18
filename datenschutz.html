@@ -26,28 +26,14 @@
 <footer class="site-footer" id="site-footer"></footer>
 
 <script type="module">
-  import { renderNav, renderFooter } from "./nav.js";
-  import { db } from "./firebase-init.js";
-  import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-  renderNav("datenschutz.html");
-  renderFooter();
-
-  async function load(){
-    let snap;
-    try{
-      snap = await getDoc(doc(db,"config","legal"));
-    }catch(e){
-      console.error(e);
-      document.getElementById("legalText").textContent = "Der Text konnte gerade nicht geladen werden. Bitte versuche es später noch einmal.";
-      return;
-    }
-    const text = snap.exists() && snap.data().datenschutz
-      ? snap.data().datenschutz
-      : "Hier steht bald die Datenschutzerklärung von Candy Bar Vogtland.\n\nDieser Platzhaltertext kann im Dashboard unter 'Rechtliche Seiten' bearbeitet werden.";
-    document.getElementById("legalText").textContent = text;
-  }
-  load();
+import { renderNav, renderFooter } from "./nav.js";
+renderNav("datenschutz.html");renderFooter();
+(async()=>{
+ const el=document.getElementById("legalText");
+ try{const r=await fetch("./backend/php/api/content.php",{headers:{Accept:"application/json"}});const d=await r.json();if(!r.ok)throw Error(d.error||"Laden fehlgeschlagen");
+ el.textContent=d.settings?.datenschutz||"Hier steht bald das Datenschutz von Candy Bar Vogtland. Der Text kann im Admin-Dashboard bearbeitet werden.";
+ }catch(e){el.textContent="Der Text konnte gerade nicht geladen werden. Bitte versuche es später erneut.";console.error(e);}
+})();
 </script>
 </body>
 </html>

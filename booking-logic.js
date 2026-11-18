@@ -135,3 +135,27 @@ export function dayClass(state, iso, av) {
   if (av.amTaken.has(iso)) return "half-am";
   return "";
 }
+
+
+// ---------- Transaktionale Tages-Sperren für Firestore ----------
+export const localTodayIso = () => fmt(new Date());
+
+export function lockPlan(eventStart, eventEnd) {
+  const { pickup, ret } = periodFor(eventStart, eventEnd);
+  const plan = [{ date: pickup, slot: "pm" }];
+  for (let d = eventStart; d <= eventEnd; d = addDays(d, 1)) {
+    plan.push({ date: d, slot: "full" });
+  }
+  plan.push({ date: ret, slot: "am" });
+  return plan;
+}
+
+export const slotField = slot => slot;
+
+export function slotConflict(data = {}, slot) {
+  if (!data) return false;
+  if (slot === "full") return !!(data.full || data.am || data.pm);
+  if (slot === "pm") return !!(data.full || data.pm);
+  if (slot === "am") return !!(data.full || data.am);
+  return true;
+}
